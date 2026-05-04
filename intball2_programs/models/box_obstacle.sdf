@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<sdf version="1.6">
+  <model name="{model_name}">
+    <pose>0 0 0 0 0 0</pose>
+    <link name="link">
+      <inertial>
+        <mass>1.0</mass>
+        <inertia>
+          <ixx>0.1</ixx><iyy>0.1</iyy><izz>0.1</izz>
+          <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz>
+        </inertia>
+      </inertial>
+{collision_block}
+      <visual name="visual">
+        <geometry>
+          <box><size>{size_x} {size_y} {size_z}</size></box>
+        </geometry>
+      </visual>
+    </link>
+  </model>
+</sdf>
