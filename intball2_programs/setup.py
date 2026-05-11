@@ -28,6 +28,7 @@ setup(
     entry_points={
         'console_scripts': [
             'spawn_model = intball2_programs.spawn:main',
+            'move_relative = intball2_programs.move_relative:main',
         ],
     },
 )
