@@ -214,13 +214,13 @@ def build_model_xml(template, model_name, size, collision_enabled):
 
 def parse_args(argv):
     parser = argparse.ArgumentParser(description='Spawn an SDF model in Gazebo.')
-    parser.add_argument('--model', default=DEFAULT_MODEL)
-    parser.add_argument('--name', default=None)
-    parser.add_argument('--frame', default=DEFAULT_FRAME)
-    parser.add_argument('--size', nargs=3, type=float, default=list(DEFAULT_SIZE))
-    parser.add_argument('--offset', nargs=3, type=float, default=list(DEFAULT_OFFSET))
-    parser.add_argument('--rpy', nargs=3, type=float, default=list(DEFAULT_RPY))
-    parser.add_argument('--collision', action='store_true')
+    parser.add_argument('-m', dest='model', default=DEFAULT_MODEL)
+    parser.add_argument('-n', dest='name', default=None)
+    parser.add_argument('-f', dest='frame', default=DEFAULT_FRAME)
+    parser.add_argument('-s', dest='size', nargs=3, type=float, default=list(DEFAULT_SIZE))
+    parser.add_argument('-o', dest='offset', nargs=3, type=float, default=list(DEFAULT_OFFSET))
+    parser.add_argument('-r', dest='rpy', nargs=3, type=float, default=list(DEFAULT_RPY))
+    parser.add_argument('-c', dest='collision', action='store_true')
     return parser.parse_args(argv)
 
 
@@ -254,8 +254,7 @@ def _parse_args_with_legacy_fallback(argv, logger):
     if not argv or argv[0].startswith('-'):
         return parse_args(argv)
     logger.warn(
-        'Positional arguments are deprecated. Use --model/--name/--frame '
-        '--size/--offset/--rpy/--collision instead.'
+        'Positional arguments are deprecated. Use -m/-n/-f/-s/-o/-r/-c instead.'
     )
     name = argv[0]
     x = float(argv[1]) if len(argv) > 1 else 0.0

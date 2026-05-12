@@ -1,3 +1,3 @@
-
-sudo apt update
-sudo apt install ros-humble-gazebo-msgs ros-humble-gazebo-ros-pkgs
+sudo apt-get install -y \
+    ros-$ROS_DISTRO-gazebo-msgs \
+    ros-$ROS_DISTRO-gazebo-ros-pkgs
