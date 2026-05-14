@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<sdf version="1.6">
+  <model name="{model_name}">
+    <static>false</static>
+    <pose>0 0 0 0 0 0</pose>
+    <link name="human_link">
+      <gravity>0</gravity>
+      <self_collide>false</self_collide>
+      <inertial>
+        <mass>1.0</mass>
+        <inertia>
+          <ixx>0.01</ixx><iyy>0.01</iyy><izz>0.01</izz>
+          <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz>
+        </inertia>
+      </inertial>
+{collision_block}
+      <visual name="visual">
+        <geometry>
+          <mesh>
+            <uri>model://person_standing/meshes/standing.dae</uri>
+            <scale>0.7 0.7 0.7</scale>
+          </mesh>
+        </geometry>
+      </visual>
+    </link>
+  </model>
+</sdf>
