@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<sdf version="1.6">
+  <model name="{model_name}">
+    <static>true</static>
+    <pose>0 0 0 0 0 0</pose>
+
+    <include>
+      <uri>https://fuel.gazebosim.org/1.0/GoogleResearch/models/Travel_Mate_P_series_Notebook</uri>
+    </include>
+
+    <link name="collision_wrapper_link">
+      <inertial>
+        <mass>0.001</mass>
+        <inertia>
+          <ixx>0.0001</ixx><iyy>0.0001</iyy><izz>0.0001</izz>
+          <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz>
+        </inertia>
+      </inertial>
+
+      <pose>0 0 0.05 0 0 0</pose>
+
+      {collision_block}
+    </link>
+  </model>
+</sdf>
