@@ -29,6 +29,8 @@ setup(
         'console_scripts': [
             'spawn_model = intball2_programs.spawn:main',
             'move_relative = intball2_programs.move_relative:main',
+            'cmd_vel = intball2_programs.cmd_vel:main',
+            'servise_picture = intball2_programs.servise_picture:main',
         ],
     },
 )
