@@ -18,11 +18,11 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             'left_info_topic',
-            default_value='/camera_left/camera_info',
+            default_value='/camera_left/camera_info_fixed',
         ),
         DeclareLaunchArgument(
             'right_info_topic',
-            default_value='/camera_right/camera_info',
+            default_value='/camera_right/camera_info_fixed',
         ),
 
         # stereo_image_proc の DisparityNode と PointCloudNode を
@@ -54,7 +54,7 @@ def generate_launch_description():
                         'min_disparity': -34,
                         'disparity_range': 64,
                         'uniqueness_ratio': 5.0,
-                        'texture_threshold': 200,
+                        'texture_threshold': 10,
                         'speckle_size': 375,
                         'speckle_range': 10,
                         'P1': 200.0,
@@ -90,6 +90,22 @@ def generate_launch_description():
                 '--frame-id', 'cameraL_link',
                 '--child-frame-id', 'cameraL_optical_frame',
             ],
+            output='screen',
+        ),
+        Node(
+            package='tf2_ros',
+            executable='static_transform_publisher',
+            arguments=[
+                '--x', '0', '--y', '0', '--z', '0',
+                '--yaw', '-1.5708', '--pitch', '0', '--roll', '-1.5708',
+                '--frame-id', 'cameraR_link',
+                '--child-frame-id', 'cameraR_optical_frame',
+            ],
+            output='screen',
+        ),
+        Node(
+            package='intball2_programs',
+            executable='fix_camera_info',
             output='screen',
         ),
         Node(

@@ -17,22 +17,35 @@
 import numpy as np
 import rclpy
 from rclpy.node import Node
-from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import PointCloud2
-from sensor_msgs_py.point_cloud2 import create_cloud_xyz32, read_points_numpy
+from sensor_msgs_py.point_cloud2 import dtype_from_fields
 
 
 def filter_pointcloud(msg, min_x, max_x, min_y, max_y, min_z, max_z):
-    """Return a new PointCloud2 containing only points within the given bounds."""
-    pts = read_points_numpy(msg, field_names=['x', 'y', 'z'], skip_nans=True)
-    if pts.shape[0] == 0:
-        return create_cloud_xyz32(msg.header, pts)
+    """Return a new PointCloud2 keeping all original fields, filtered by XYZ bounds."""
+    dtype = dtype_from_fields(msg.fields, point_step=msg.point_step)
+    pts = np.frombuffer(bytes(msg.data), dtype=dtype)
+    x = pts['x'].astype(np.float32)
+    y = pts['y'].astype(np.float32)
+    z = pts['z'].astype(np.float32)
     mask = (
-        (pts[:, 0] >= min_x) & (pts[:, 0] <= max_x)
-        & (pts[:, 1] >= min_y) & (pts[:, 1] <= max_y)
-        & (pts[:, 2] >= min_z) & (pts[:, 2] <= max_z)
+        np.isfinite(x) & np.isfinite(y) & np.isfinite(z)
+        & (x >= min_x) & (x <= max_x)
+        & (y >= min_y) & (y <= max_y)
+        & (z >= min_z) & (z <= max_z)
     )
-    return create_cloud_xyz32(msg.header, pts[mask])
+    filtered = pts[mask]
+    out = PointCloud2()
+    out.header = msg.header
+    out.height = 1
+    out.width = len(filtered)
+    out.fields = msg.fields
+    out.is_bigendian = msg.is_bigendian
+    out.point_step = msg.point_step
+    out.row_step = msg.point_step * len(filtered)
+    out.data = filtered.tobytes()
+    out.is_dense = True
+    return out
 
 
 class CropPointCloud(Node):
@@ -40,11 +53,9 @@ class CropPointCloud(Node):
 
     def __init__(self):
         super().__init__('crop_pointcloud')
-        self._bounds = (-2.0, 2.0, -2.0, 2.0, -0.1, 5.0)
-        self._pub = self.create_publisher(
-            PointCloud2, '/stereo/points2_filtered', qos_profile_sensor_data)
-        self.create_subscription(
-            PointCloud2, '/stereo/points2', self._cb, qos_profile_sensor_data)
+        self._bounds = (-1.5, 1.0, -0.3, 2.0, 0.2, 3.0)
+        self._pub = self.create_publisher(PointCloud2, '/stereo/points2_filtered', 10)
+        self.create_subscription(PointCloud2, '/stereo/points2', self._cb, 10)
 
     def _cb(self, msg):
         self._pub.publish(filter_pointcloud(msg, *self._bounds))
