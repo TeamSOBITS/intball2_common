@@ -2,7 +2,7 @@
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
-from launch_ros.actions import ComposableNodeContainer
+from launch_ros.actions import ComposableNodeContainer, Node
 from launch_ros.descriptions import ComposableNode
 
 
@@ -79,6 +79,22 @@ def generate_launch_description():
                     }],
                 ),
             ],
+            output='screen',
+        ),
+        Node(
+            package='tf2_ros',
+            executable='static_transform_publisher',
+            arguments=[
+                '--x', '0', '--y', '0', '--z', '0',
+                '--yaw', '-1.5708', '--pitch', '0', '--roll', '-1.5708',
+                '--frame-id', 'cameraL_link',
+                '--child-frame-id', 'cameraL_optical_frame',
+            ],
+            output='screen',
+        ),
+        Node(
+            package='intball2_programs',
+            executable='crop_pointcloud',
             output='screen',
         ),
     ])
