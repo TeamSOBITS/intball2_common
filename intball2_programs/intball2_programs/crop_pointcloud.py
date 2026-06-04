@@ -17,6 +17,7 @@
 import numpy as np
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import PointCloud2
 from sensor_msgs_py.point_cloud2 import create_cloud_xyz32, read_points_numpy
 
@@ -24,7 +25,7 @@ from sensor_msgs_py.point_cloud2 import create_cloud_xyz32, read_points_numpy
 def filter_pointcloud(msg, min_x, max_x, min_y, max_y, min_z, max_z):
     """Return a new PointCloud2 containing only points within the given bounds."""
     pts = read_points_numpy(msg, field_names=['x', 'y', 'z'], skip_nans=True)
-    if pts.size == 0:
+    if pts.shape[0] == 0:
         return create_cloud_xyz32(msg.header, pts)
     mask = (
         (pts[:, 0] >= min_x) & (pts[:, 0] <= max_x)
@@ -40,8 +41,10 @@ class CropPointCloud(Node):
     def __init__(self):
         super().__init__('crop_pointcloud')
         self._bounds = (-2.0, 2.0, -2.0, 2.0, -0.1, 5.0)
-        self._pub = self.create_publisher(PointCloud2, '/stereo/points2_filtered', 10)
-        self.create_subscription(PointCloud2, '/stereo/points2', self._cb, 10)
+        self._pub = self.create_publisher(
+            PointCloud2, '/stereo/points2_filtered', qos_profile_sensor_data)
+        self.create_subscription(
+            PointCloud2, '/stereo/points2', self._cb, qos_profile_sensor_data)
 
     def _cb(self, msg):
         self._pub.publish(filter_pointcloud(msg, *self._bounds))
