@@ -13,7 +13,9 @@ setup(
         ('share/' + package_name, ['package.xml']),
         ('share/' + package_name + '/launch', glob('launch/*.py')),
         ('share/' + package_name + '/models', glob('models/*.sdf')),
-    ],
+        ('share/' + package_name + '/models', glob('models/*.ply')),
+        ('share/' + package_name + '/rviz', glob('rviz/*.rviz')),
+        ],
     install_requires=['setuptools'],
     zip_safe=True,
     maintainer='rg-msi-03',
@@ -34,6 +36,7 @@ setup(
             'fan_control = intball2_programs.fan_control:main',
             'crop_pointcloud = intball2_programs.crop_pointcloud:main',
             'fix_camera_info = intball2_programs.fix_camera_info:main',
+            'ply_publisher = intball2_programs.ply_publisher:main',
         ],
     },
 )
