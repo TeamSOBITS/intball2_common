@@ -32,5 +32,5 @@ def generate_launch_description():
     
     return LaunchDescription([
         ply_publisher_node,
-        rviz_node
+        # rviz_node
     ])
