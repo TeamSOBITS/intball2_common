@@ -174,6 +174,27 @@ ros2 run intball2_programs move_relative -r 45.0
 ros2 run intball2_programs move_relative -x 0.5 -y 0.5 -z 0.5 -r 0.0 -p 0.0 -w 45.0
 ```
 
+### ISSモデルの表示方法
+Rviz2上にISSのモデルを表示させることができる
+```sh
+ros2 launch intball2_programs iss_model.launch.py 
+```
+
+### PLYファイルの表示方法
+3D Gaussian Splatingで作成したPLYファイルを点群情報として表示することができる
+```sh
+ros2 launch intball2_programs ply_display.launch.py
+```
+
+パブリッシャーのみを起動する場合
+```sh
+ros2 run intball2_programs ply_publisher 
+```
+```sh
+# modelsディレクトリ内のPLYファイルのパスを指定
+ply_path = os.path.join(package_share_dir, 'models', 'iss_30000.ply')
+```
+
 <p align="right">(<a href="#readme-top">上に戻る</a>)</p>
 
 

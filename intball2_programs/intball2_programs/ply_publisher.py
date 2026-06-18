@@ -16,10 +16,8 @@ class PlyPublisher(Node):
         # パッケージのインストールパスを取得
         package_share_dir = get_package_share_directory('intball2_programs')
         
-        # models と map のどちらに配置されていても読み込めるようにしています
+        # modelsディレクトリ内のPLYファイルのパスを指定
         ply_path = os.path.join(package_share_dir, 'models', 'iss_30000.ply')
-        if not os.path.exists(ply_path):
-            ply_path = os.path.join(package_share_dir, 'map', 'iss_30000.ply')
         
         self.get_logger().info(f'Loading PLY file from: {ply_path}')
         
@@ -143,6 +141,7 @@ class PlyPublisher(Node):
         if hasattr(self, 'pc2_msg'):
             self.pc2_msg.header.stamp = self.get_clock().now().to_msg()
             self.pc2_msg.header.frame_id = 'dock_body' 
+            # self.pc2_msg.header.frame_id = 'map'
             self.publisher_.publish(self.pc2_msg)
 
 def main(args=None):
