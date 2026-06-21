@@ -3,3 +3,5 @@
 .github/
 ./models/*.ply
 openspec/
+/tmp
+/.vscode
