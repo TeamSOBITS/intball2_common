@@ -36,7 +36,6 @@ setup(
             'move_relative = intball2_programs.move_relative:main',
             'cmd_vel = intball2_programs.cmd_vel:main',
             'servise_picture = intball2_programs.servise_picture:main',
-            'fan_control = intball2_programs.fan_control:main',
             'crop_pointcloud = intball2_programs.crop_pointcloud:main',
             'fix_camera_info = intball2_programs.fix_camera_info:main',
             'ply_publisher = intball2_programs.ply_publisher:main',
