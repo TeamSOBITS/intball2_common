@@ -39,7 +39,7 @@ Visualization Manager:
       Channel Name: rgb
       Class: rviz_default_plugins/PointCloud2
       Color: 255; 255; 255
-      Color Transformer: FlatColor
+      Color Transformer: RGB8
       Decay Time: 0
       Enabled: true
       Invert Rainbow: false
@@ -52,7 +52,7 @@ Visualization Manager:
       Selectable: true
       Size (Pixels): 3
       Size (m): 0.009999999776482582
-      Style: Points
+      Style: Flat Squares
       Topic:
         Depth: 5
         Durability Policy: Volatile
@@ -95,10 +95,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.05039818584918976
+      Pitch: 0.050398487597703934
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz_default_plugins)
-      Yaw: 0.3203941583633423
+      Yaw: 6.193574905395508
     Saved: ~
 Window Geometry:
   Displays:
@@ -108,5 +108,5 @@ Window Geometry:
   Hide Right Dock: false
   QMainWindow State: 000000ff00000000fd000000010000000000000156000003c1fc0200000001fb000000100044006900730070006c0061007900730100000039000003c1000000c500ffffff00000624000003c100000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Width: 1920
-  X: 1920
+  X: 0
   Y: 0
