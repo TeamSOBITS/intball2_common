@@ -19,6 +19,12 @@ from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import CameraInfo
 
+# Actual physical separation between cameraL_link and cameraR_link (see
+# body->cameraL_link / body->cameraR_link static transforms), in meters.
+# Gazebo's camera plugin publishes Tx for a baseline that doesn't match this,
+# which makes stereo_image_proc compute depth scaled by (plugin baseline / this).
+STEREO_BASELINE_M = 0.05
+
 
 class FixCameraInfo(Node):
     """Change camera_info frame_id from *_link to *_optical_frame and republish."""
@@ -45,11 +51,12 @@ class FixCameraInfo(Node):
 
     def _cb_right(self, msg):
         msg.header.frame_id = 'cameraR_optical_frame'
-        # Gazebo publishes a negative Tx for both cameras. For stereo depth to yield
-        # positive Z (scene in front), the right camera's Tx must be positive when
-        # disparities are negative (Gazebo's reversed-baseline convention).
+        # Gazebo's plugin Tx corresponds to a baseline that doesn't match the
+        # cameraL_link/cameraR_link TF spacing, which scales computed depth
+        # incorrectly. Override Tx with fx * the real baseline (positive, since
+        # disparities are negative under Gazebo's reversed-baseline convention).
         p = list(msg.p)
-        p[3] = abs(p[3])
+        p[3] = p[0] * STEREO_BASELINE_M
         msg.p = p
         self._pub_right.publish(msg)
 

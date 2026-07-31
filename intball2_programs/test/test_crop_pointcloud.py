@@ -23,7 +23,7 @@ from sensor_msgs_py.point_cloud2 import create_cloud_xyz32, read_points_numpy
 from std_msgs.msg import Header
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-from intball2_programs.crop_pointcloud import filter_pointcloud  # noqa: E402
+from intball2_programs.stereo_points.crop_pointcloud import filter_pointcloud  # noqa: E402
 
 
 def _make_cloud(points, frame_id='cameraL_optical_frame'):
