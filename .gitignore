@@ -5,3 +5,5 @@
 openspec/
 /tmp
 /.vscode
+__pycache__/
+*.pyc

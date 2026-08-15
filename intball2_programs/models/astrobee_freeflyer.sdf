@@ -1,0 +1,85 @@
+<?xml version="1.0"?>
+<sdf version="1.6">
+  <model name="{model_name}">
+    <pose>0 0 0 0 0 0</pose>
+    <link name="link">
+      <gravity>0</gravity>
+
+      <visual name="body_visual">
+        <geometry>
+          <mesh>
+            <uri>model://portable_objects/meshes/astrobee_freeflyer/meshes/body.dae</uri>
+            <scale>1 1 1</scale>
+          </mesh>
+        </geometry>
+      </visual>
+
+      <visual name="pmc_port_visual">
+        <geometry>
+          <mesh>
+            <uri>model://portable_objects/meshes/astrobee_freeflyer/meshes/pmc.dae</uri>
+            <scale>1 1 1</scale>
+          </mesh>
+        </geometry>
+      </visual>
+
+      <visual name="pmc_port_bumper_visual">
+        <geometry>
+          <mesh>
+            <uri>model://portable_objects/meshes/astrobee_freeflyer/meshes/pmc_bumper.dae</uri>
+            <scale>1 1 1</scale>
+          </mesh>
+        </geometry>
+      </visual>
+
+      <visual name="pmc_port_skin_visual">
+        <geometry>
+          <mesh>
+            <uri>model://portable_objects/meshes/astrobee_freeflyer/meshes/pmc_skin_.dae</uri>
+            <scale>1 1 1</scale>
+          </mesh>
+        </geometry>
+      </visual>
+
+      <visual name="pmc_stbd_visual">
+        <pose>0 0 0 0 3.14 3.14</pose>
+        <geometry>
+          <mesh>
+            <uri>model://portable_objects/meshes/astrobee_freeflyer/meshes/pmc.dae</uri>
+            <scale>1 1 1</scale>
+          </mesh>
+        </geometry>
+      </visual>
+
+      <visual name="pmc_stbd_bumper_visual">
+        <pose>0 0 0 0 3.14 3.14</pose>
+        <geometry>
+          <mesh>
+            <uri>model://portable_objects/meshes/astrobee_freeflyer/meshes/pmc_bumper.dae</uri>
+            <scale>1 1 1</scale>
+          </mesh>
+        </geometry>
+      </visual>
+
+      <visual name="pmc_stbd_skin_visual">
+        <pose>0 0 0 0 3.14 3.14</pose>
+        <geometry>
+          <mesh>
+            <uri>model://portable_objects/meshes/astrobee_freeflyer/meshes/pmc_skin_.dae</uri>
+            <scale>1 1 1</scale>
+          </mesh>
+        </geometry>
+      </visual>
+
+{collision_block}
+
+      <inertial>
+        <mass>9.6</mass>
+        <inertia>
+          <ixx>0.153</ixx><iyy>0.143</iyy><izz>0.162</izz>
+          <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz>
+        </inertia>
+      </inertial>
+    </link>
+  </model>
+</sdf>

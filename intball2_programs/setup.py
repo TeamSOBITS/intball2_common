@@ -1,7 +1,26 @@
+import os
 from glob import glob
 from setuptools import find_packages, setup
 
 package_name = 'intball2_programs'
+
+
+def mesh_data_files(root_dir, install_prefix):
+    """root_dir以下をディレクトリ構造を保ったままdata_filesエントリ化する。
+
+    human_obstacles/portable_objectsのメッシュは自身のディレクトリ配置に対する
+    相対URI(meshes/...等)を前提にしているため、glob('*.sdf')のような単純な
+    フラットインストールでは構造が崩れて解決できなくなる。
+    """
+    entries = []
+    for dirpath, _dirnames, filenames in os.walk(root_dir):
+        if not filenames:
+            continue
+        rel = os.path.relpath(dirpath, root_dir)
+        install_dir = install_prefix if rel == '.' else os.path.join(install_prefix, rel)
+        entries.append((install_dir, [os.path.join(dirpath, f) for f in filenames]))
+    return entries
+
 
 setup(
     name=package_name,
@@ -18,7 +37,9 @@ setup(
         ('share/' + package_name + '/urdf', glob('urdf/*.urdf')),
         ('share/' + package_name + '/media/meshes/iss', glob('media/meshes/iss/*.dae')),
         ('share/' + package_name + '/media/materials/textures', glob('media/materials/textures/*.png')),
-        ],
+        ]
+        + mesh_data_files('media/meshes/human_obstacles', 'share/' + package_name + '/media/meshes/human_obstacles')
+        + mesh_data_files('media/meshes/portable_objects', 'share/' + package_name + '/media/meshes/portable_objects'),
     install_requires=['setuptools'],
     zip_safe=True,
     maintainer='rg-msi-03',

@@ -105,13 +105,40 @@ ros2 run intball2_programs spawn_model [引数]
 
 | 引数 | 説明 | デフォルト値 |
 | --- | --- | --- |
-| `-m` | モデル名 | `box_obstacle` |
+| `-m` | モデル名（下記「spawn可能なモデル一覧」参照） | `box_obstacle` |
 | `-n` | モデルインスタンス名（省略時は自動生成） | `{model}_{uuid}` |
 | `-f` | 参照フレーム | `iss_body` |
-| `-s` | サイズ（メートル） | `0.45 0.25 1.7` |
+| `-s` | サイズ（メートル、`box`系モデルのみ有効） | `0.45 0.25 1.7` |
 | `-o` | オフセット（メートル） | `0.0 0.0 0.0` |
 | `-r` | 回転角（度） | `0.0 0.0 0.0` |
 | `-c` | コリジョン有効化フラグ | 無効 |
+
+#### spawn可能なモデル一覧
+
+| `-m`に指定する値 | 内容 |
+| --- | --- |
+| `box`（デフォルト: `box_obstacle`） | 直方体。サイズは`-s`、コリジョンは`-c`で制御 |
+| `human` | 地上用（standing）人物モデル。`gravity=0`のため浮遊もする |
+| `laptop` | Gazebo Fuel上のノートPCモデル |
+| `float_blue` | 浮遊人物モデル（しゃがみ浮遊姿勢・青） |
+| `float_orange` | 浮遊人物モデル（しゃがみ浮遊姿勢・オレンジ） |
+| `float_purple` | 浮遊人物モデル（しゃがみ浮遊姿勢・紫） |
+| `float2_blue` | 浮遊人物モデル（立位浮遊姿勢・青） |
+| `float2_green` | 浮遊人物モデル（立位浮遊姿勢・緑） |
+| `float2_orange` | 浮遊人物モデル（立位浮遊姿勢・オレンジ） |
+| `float2_purple` | 浮遊人物モデル（立位浮遊姿勢・紫） |
+| `tape` | 競技用テープ（Gaffers Tape）モデル |
+| `ctb_1023` | CTB（Cargo Transfer Bag）モデル |
+| `ctb_1456` | CTB（Cargo Transfer Bag）モデル |
+| `ctb_2305` | CTB（Cargo Transfer Bag）モデル |
+| `ctb_2789` | CTB（Cargo Transfer Bag）モデル |
+| `ctb_4678` | CTB（Cargo Transfer Bag）モデル |
+| `astrobee_freeflyer` | Astrobee free-flyerロボットモデル |
+
+`float_*`/`float2_*`/`tape`/`ctb_*`/`astrobee_freeflyer`は競技用シム（Noetic側）のローカルメッシュを
+参照しています（詳細は[docs/floating_human_spawn.md](docs/floating_human_spawn.md)・
+[docs/portable_objects_spawn.md](docs/portable_objects_spawn.md)を参照）。`-c`指定時のみ
+コリジョンが付与され（`-s`は適用外）、未指定時は見た目のみの配置になります。
 
 #### 使用例
 
@@ -119,20 +146,11 @@ ros2 run intball2_programs spawn_model [引数]
 # 基本的な使用例（デフォルト値で配置）
 ros2 run intball2_programs spawn_model
 
-# boxを配置
-ros2 run intball2_programs spawn_model -m box
+# boxをサイズ・回転・コリジョン指定で配置
+ros2 run intball2_programs spawn_model -m box -s 0.3 0.3 0.3 -r 0.0 0.0 90.0 -c
 
-# サイズとオフセットを指定
-ros2 run intball2_programs spawn_model -s 0.5 0.5 1.0 -o 0.5 0.0 0.0
-
-# 回転を指定（Z軸中心に45度回転）
-ros2 run intball2_programs spawn_model -r 0.0 0.0 45.0
-
-# コリジョン有効で配置
-ros2 run intball2_programs spawn_model -c
-
-# 複数の引数を組み合わせて使用
-ros2 run intball2_programs spawn_model -n obstacle2 -s 0.3 0.3 0.3 -o 1.0 0.5 0.0 -r 0.0 0.0 90.0 -c
+# 参照フレームをworldに変更し、浮遊人物モデルをコリジョンありで配置
+ros2 run intball2_programs spawn_model -m float_blue -f iss_body -o 10.8 -6.0 4.8 -c
 ```
 
 <p align="right">(<a href="#readme-top">上に戻る</a>)</p>

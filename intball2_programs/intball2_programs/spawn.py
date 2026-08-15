@@ -7,12 +7,23 @@ import uuid
 
 from ament_index_python.packages import get_package_share_directory
 import rclpy
-from rclpy.duration import Duration
 from rclpy.node import Node
-import tf2_ros
-from gazebo_msgs.srv import SpawnModel, DeleteModel
-from gazebo_msgs.msg import ModelState, ModelStates
+from rclpy.signals import SignalHandlerOptions
 from geometry_msgs.msg import Pose, Point, Quaternion
+from visualization_msgs.msg import Marker
+
+from intball2_programs.sim_models import (
+    SIM_MODELS, ASTROBEE_COLLISION_BLOCK, ASTROBEE_VISUAL_PARTS,
+    build_sim_model_xml, local_mesh_uri, astrobee_mesh_uri,
+)
+from intball2_programs.ros import (
+    DeleteModelServiceClient,
+    MarkerArrayPublisher,
+    ModelStatePublisher,
+    ModelStatesSubscriber,
+    SpawnModelServiceClient,
+    TFClient,
+)
 
 
 DEFAULT_MODEL = 'box_obstacle'
@@ -24,87 +35,37 @@ WORLD_FRAME = 'world'
 ISS_MODEL_NAME = 'iss'
 ISS_TF_FRAME = 'iss_body'
 
+# astrobee_freeflyer は複数visual/複数collisionの特殊構成のため、SIM_MODELS辞書ではなく
+# 専用テンプレート(models/astrobee_freeflyer.sdf)を使う(sim_models.py参照)。
+ASTROBEE_MODEL_NAME = 'astrobee_freeflyer'
+
 
 class SpawnBoxClient(Node):
     def __init__(self):
         super().__init__('spawn_box_client')
-        self.cli = self.create_client(SpawnModel, '/gazebo/spawn_sdf_model')
-        self.delete_cli = self.create_client(DeleteModel, '/gazebo/delete_model')
-        self.state_pub = self.create_publisher(ModelState, '/gazebo/set_model_state', 10)
-        self.model_states = None
-        self.create_subscription(ModelStates, '/gazebo/model_states', self._model_states_cb, 10)
-        self.tf_buffer = tf2_ros.Buffer()
-        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
-
-    def _model_states_cb(self, msg):
-        self.model_states = msg
+        self.spawn_service = SpawnModelServiceClient(self)
+        self.delete_service = DeleteModelServiceClient(self)
+        self.model_states = ModelStatesSubscriber(self)
+        self.model_state_pub = ModelStatePublisher(self)
+        self.tf_client = TFClient(self)
+        self.marker_pub = MarkerArrayPublisher(self, topic='spawned_model_markers')
 
     def wait_service(self, timeout_sec=10.0):
-        if not self.cli.wait_for_service(timeout_sec=timeout_sec):
-            self.get_logger().error('Service /gazebo/spawn_sdf_model not available.')
-            return False
-        return True
+        return self.spawn_service.wait_for_service(timeout_sec)
 
     def wait_for_model_states(self, timeout_sec=5.0):
-        deadline = self.get_clock().now() + Duration(seconds=timeout_sec)
-        while rclpy.ok() and self.get_clock().now() < deadline:
-            if self.model_states is not None:
-                return
-            rclpy.spin_once(self, timeout_sec=0.1)
-        raise RuntimeError('No /gazebo/model_states received yet')
+        self.model_states.wait_until_received(timeout_sec)
 
     def spawn(self, name, model_xml, pose, reference_frame):
-        req = SpawnModel.Request()
-        req.model_name = name
-        req.model_xml = model_xml
-        req.robot_namespace = ''
-        req.initial_pose = pose
-        req.reference_frame = reference_frame
-
-        self.get_logger().info(
-            f'Spawning "{name}" in "{reference_frame}" at '
-            f'({pose.position.x}, {pose.position.y}, {pose.position.z})...'
-        )
-        future = self.cli.call_async(req)
-        rclpy.spin_until_future_complete(self, future, timeout_sec=15.0)
-
-        if future.result() is None:
-            self.get_logger().error('Service call timed out or failed.')
-            return False
-
-        res = future.result()
-        if res.success:
-            self.get_logger().info(f'OK: {res.status_message}')
-            return True
-        self.get_logger().error(f'NG: {res.status_message}')
-        return False
+        return self.spawn_service.call(name, model_xml, pose, reference_frame)
 
     def delete_model(self, name):
-        if not self.context.ok():
-            return False
-        if not self.delete_cli.wait_for_service(timeout_sec=2.0):
-            self.get_logger().warn('Service /gazebo/delete_model not available.')
-            return False
-        req = DeleteModel.Request()
-        req.model_name = name
-        future = self.delete_cli.call_async(req)
-        rclpy.spin_until_future_complete(self, future, timeout_sec=5.0)
-        if future.result() is None:
-            self.get_logger().warn('DeleteModel call timed out.')
-            return False
-        res = future.result()
-        if res.success:
-            self.get_logger().info(f'DeleteModel OK: {res.status_message}')
-            return True
-        self.get_logger().warn(f'DeleteModel NG: {res.status_message}')
-        return False
+        return self.delete_service.call(name)
 
     def build_pose(self, frame, offset, rpy):
-        if self.model_states is None:
-            raise RuntimeError('No /gazebo/model_states received yet')
-        if ISS_MODEL_NAME not in self.model_states.name:
+        iss_pose = self.model_states.get_pose(ISS_MODEL_NAME)
+        if iss_pose is None:
             raise RuntimeError(f'Model not found in /gazebo/model_states: {ISS_MODEL_NAME}')
-        iss_pose = self.model_states.pose[self.model_states.name.index(ISS_MODEL_NAME)]
 
         relative_pos = self._resolve_offset(frame, offset)
         iss_rotation = iss_pose.orientation
@@ -117,21 +78,27 @@ class SpawnBoxClient(Node):
         orientation = quaternion_multiply(iss_rotation, rpy_deg_to_quaternion(*rpy))
         return Pose(position=position, orientation=orientation)
 
+    def build_relative_pose(self, frame, offset, rpy):
+        """rviz表示用。iss_bodyフレームでの相対姿勢(Gazebo world座標への変換なし)を返す。
+
+        rvizのFixed Frameは常にiss_body(このrviz.rvizのGlobal Options参照)なので、
+        build_pose()のようにiss_pose(Gazebo world内での実際のISS姿勢)を合成する必要がない。
+        """
+        relative_pos = self._resolve_offset(frame, offset)
+        return Pose(
+            position=Point(x=relative_pos[0], y=relative_pos[1], z=relative_pos[2]),
+            orientation=rpy_deg_to_quaternion(*rpy),
+        )
+
     def _resolve_offset(self, target_frame, manual_offset):
         if not target_frame or target_frame == ISS_TF_FRAME:
             return manual_offset
-        try:
-            transform = self.tf_buffer.lookup_transform(
-                ISS_TF_FRAME, target_frame, rclpy.time.Time()
-            )
-        except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException) as exc:
-            self.get_logger().warn(
-                f'TF lookup failed for {target_frame} -> {ISS_TF_FRAME}: {exc}. '
-                'Using manual offset only.'
-            )
+        translation = self.tf_client.lookup_translation(
+            ISS_TF_FRAME, target_frame, logger=self.get_logger()
+        )
+        if translation is None:
             return manual_offset
-        t = transform.transform.translation
-        return [t.x + manual_offset[0], t.y + manual_offset[1], t.z + manual_offset[2]]
+        return [translation[i] + manual_offset[i] for i in range(3)]
 
     def publish_sync(self, instance_name, frame, offset, rpy):
         try:
@@ -139,11 +106,7 @@ class SpawnBoxClient(Node):
         except RuntimeError as exc:
             self.get_logger().warn(str(exc))
             return
-        state = ModelState()
-        state.model_name = instance_name
-        state.pose = pose
-        state.reference_frame = WORLD_FRAME
-        self.state_pub.publish(state)
+        self.model_state_pub.publish(instance_name, pose, WORLD_FRAME)
 
 
 def build_collision_block(size_x, size_y, size_z):
@@ -191,6 +154,74 @@ def rotate_vector(q, vector):
     return rotated.x, rotated.y, rotated.z
 
 
+def _new_marker(ns, marker_id, frame_id, stamp, marker_type):
+    marker = Marker()
+    marker.header.frame_id = frame_id
+    marker.header.stamp = stamp
+    marker.ns = ns
+    marker.id = marker_id
+    marker.type = marker_type
+    marker.action = Marker.ADD
+    return marker
+
+
+def _local_rotation_quaternion(pose_orientation, rpy_rad):
+    roll, pitch, yaw = rpy_rad
+    local = rpy_deg_to_quaternion(math.degrees(roll), math.degrees(pitch), math.degrees(yaw))
+    return quaternion_multiply(pose_orientation, local)
+
+
+def build_mesh_markers(ns, meta, pose, frame_id, stamp):
+    """SIM_MODELS(tape/ctb_*/float_*)の1メッシュ分のMarkerを返す。"""
+    marker = _new_marker(ns, 0, frame_id, stamp, Marker.MESH_RESOURCE)
+    marker.mesh_resource = local_mesh_uri(meta)
+    marker.mesh_use_embedded_materials = True
+    scale = float(meta.get('scale', 1))
+    marker.scale.x = marker.scale.y = marker.scale.z = scale
+    marker.pose.position = pose.position
+    marker.pose.orientation = _local_rotation_quaternion(
+        pose.orientation, meta.get('pose_rpy', (0.0, 0.0, 0.0))
+    )
+    marker.color.a = 1.0
+    return [marker]
+
+
+def build_astrobee_markers(ns, pose, frame_id, stamp):
+    """astrobee_freeflyer(複数visual構成)のMarker一覧を返す。"""
+    markers = []
+    for idx, part in enumerate(ASTROBEE_VISUAL_PARTS):
+        marker = _new_marker(ns, idx, frame_id, stamp, Marker.MESH_RESOURCE)
+        marker.mesh_resource = astrobee_mesh_uri(part)
+        marker.mesh_use_embedded_materials = True
+        marker.scale.x = marker.scale.y = marker.scale.z = 1.0
+        marker.pose.position = pose.position
+        marker.pose.orientation = _local_rotation_quaternion(pose.orientation, part['rpy'])
+        marker.color.a = 1.0
+        markers.append(marker)
+    return markers
+
+
+def build_box_markers(ns, size, pose, frame_id, stamp, color=(0.2, 0.6, 1.0, 0.6)):
+    """メッシュを持たないモデル(box/human/laptop)向けの簡易CUBE表示。"""
+    marker = _new_marker(ns, 0, frame_id, stamp, Marker.CUBE)
+    marker.scale.x, marker.scale.y, marker.scale.z = size
+    marker.pose = pose
+    marker.color.r, marker.color.g, marker.color.b, marker.color.a = color
+    return [marker]
+
+
+def build_delete_markers(ns, count, frame_id):
+    markers = []
+    for idx in range(count):
+        marker = Marker()
+        marker.header.frame_id = frame_id
+        marker.ns = ns
+        marker.id = idx
+        marker.action = Marker.DELETE
+        markers.append(marker)
+    return markers
+
+
 def load_model_template(model_name):
     share_dir = get_package_share_directory('intball2_programs')
     model_path = os.path.join(share_dir, 'models', f'{model_name}.sdf')
@@ -200,9 +231,12 @@ def load_model_template(model_name):
         return handle.read()
 
 
-def build_model_xml(template, model_name, size, collision_enabled):
+def build_model_xml(template, model_name, size, collision_enabled, fixed_collision_block=None):
     size_x, size_y, size_z = size
-    collision_block = build_collision_block(size_x, size_y, size_z) if collision_enabled else ''
+    if fixed_collision_block is not None:
+        collision_block = fixed_collision_block if collision_enabled else ''
+    else:
+        collision_block = build_collision_block(size_x, size_y, size_z) if collision_enabled else ''
     return template.format(
         model_name=model_name,
         size_x=size_x,
@@ -224,32 +258,6 @@ def parse_args(argv):
     return parser.parse_args(argv)
 
 
-def _delete_model_with_fresh_context(model_name):
-    # After SIGINT, the main context is already shut down by rclpy's signal handler,
-    # so a fresh context is required to reach the delete service.
-    context = rclpy.context.Context()
-    context.init()
-    node = rclpy.create_node('spawn_cleanup', context=context)
-    try:
-        cli = node.create_client(DeleteModel, '/gazebo/delete_model')
-        if not cli.wait_for_service(timeout_sec=2.0):
-            print('[Cleanup] Delete service not available (Gazebo closed?).')
-            return
-        req = DeleteModel.Request()
-        req.model_name = model_name
-        future = cli.call_async(req)
-        rclpy.spin_until_future_complete(node, future, timeout_sec=7.0)
-        if future.result() is not None:
-            print(f'[Cleanup] Deleted: {model_name}')
-        else:
-            print('[Cleanup] Delete call timed out.')
-    except Exception as exc:
-        print(f'[Cleanup] Error: {exc}')
-    finally:
-        node.destroy_node()
-        context.try_shutdown()
-
-
 def _parse_args_with_legacy_fallback(argv, logger):
     if not argv or argv[0].startswith('-'):
         return parse_args(argv)
@@ -268,19 +276,15 @@ def _parse_args_with_legacy_fallback(argv, logger):
 
 
 def main():
-    rclpy.init()
+    # rclpyの既定動作では、SIGINT受信時に自前のシグナルハンドラがcontextを即座に
+    # shutdownしてしまい、以降のクリーンアップ(Marker DELETE配信・Gazeboモデル削除)が
+    # 壊れたcontext相手になって失敗する。ここでは自動ハンドラを無効化し、通常の
+    # KeyboardInterruptとしてPython側で受け取ってから、生きたnodeで後片付けする。
+    rclpy.init(signal_handler_options=SignalHandlerOptions.NO)
     node = SpawnBoxClient()
     parsed = _parse_args_with_legacy_fallback(sys.argv[1:], node.get_logger())
 
     instance_name = parsed.name or f'{parsed.model}_{uuid.uuid4().hex[:8]}'
-
-    try:
-        template = load_model_template(parsed.model)
-    except FileNotFoundError as exc:
-        node.get_logger().error(str(exc))
-        node.destroy_node()
-        rclpy.shutdown()
-        sys.exit(1)
 
     if not node.wait_service():
         node.destroy_node()
@@ -288,10 +292,23 @@ def main():
         sys.exit(1)
 
     try:
+        if parsed.model in SIM_MODELS:
+            model_xml = build_sim_model_xml(instance_name, SIM_MODELS[parsed.model], parsed.collision)
+        else:
+            fixed_collision_block = ASTROBEE_COLLISION_BLOCK if parsed.model == ASTROBEE_MODEL_NAME else None
+            template = load_model_template(parsed.model)
+            model_xml = build_model_xml(
+                template, instance_name, parsed.size, parsed.collision,
+                fixed_collision_block=fixed_collision_block,
+            )
         node.wait_for_model_states()
-        model_xml = build_model_xml(template, instance_name, parsed.size, parsed.collision)
         pose = node.build_pose(parsed.frame, parsed.offset, parsed.rpy)
         ok = node.spawn(instance_name, model_xml, pose, WORLD_FRAME)
+    except FileNotFoundError as exc:
+        node.get_logger().error(str(exc))
+        node.destroy_node()
+        rclpy.shutdown()
+        sys.exit(1)
     except RuntimeError as exc:
         node.get_logger().error(str(exc))
         node.destroy_node()
@@ -303,25 +320,54 @@ def main():
         rclpy.shutdown()
         sys.exit(1)
 
-    timer = node.create_timer(
-        0.1,
-        lambda: node.publish_sync(instance_name, parsed.frame, parsed.offset, parsed.rpy),
-    )
+    if parsed.model in SIM_MODELS:
+        meta = SIM_MODELS[parsed.model]
+        build_markers = lambda pose, stamp: build_mesh_markers(  # noqa: E731
+            instance_name, meta, pose, ISS_TF_FRAME, stamp
+        )
+    elif parsed.model == ASTROBEE_MODEL_NAME:
+        build_markers = lambda pose, stamp: build_astrobee_markers(  # noqa: E731
+            instance_name, pose, ISS_TF_FRAME, stamp
+        )
+    else:
+        build_markers = lambda pose, stamp: build_box_markers(  # noqa: E731
+            instance_name, parsed.size, pose, ISS_TF_FRAME, stamp
+        )
+
+    marker_count = 0
+
+    def tick():
+        nonlocal marker_count
+        node.publish_sync(instance_name, parsed.frame, parsed.offset, parsed.rpy)
+        relative_pose = node.build_relative_pose(parsed.frame, parsed.offset, parsed.rpy)
+        markers = build_markers(relative_pose, node.get_clock().now().to_msg())
+        marker_count = len(markers)
+        node.marker_pub.publish(markers)
+
+    timer = node.create_timer(0.1, tick)
 
     try:
         while rclpy.ok():
             rclpy.spin_once(node, timeout_sec=0.1)
     except KeyboardInterrupt:
         print('\n[Shutdown] KeyboardInterrupt received.')
+    except RuntimeError as exc:
+        # SIGINTがspin_once()内のC拡張呼び出し(take_message)の最中に届くと、
+        # KeyboardInterruptではなくRuntimeErrorとして飛んでくることがある
+        # (rclpy/pybind11側の既知の挙動。signal_handler_options=NOにしても発生しうる)。
+        # 後片付け自体はこのfinallyで行うので、ここでは握りつぶして正常終了させる。
+        print(f'\n[Shutdown] Received during SIGINT: {exc}')
     finally:
         timer.cancel()
-        node.destroy_node()
-        try:
-            rclpy.shutdown()
-        except Exception:
-            pass
+        if marker_count:
+            node.marker_pub.publish(build_delete_markers(instance_name, marker_count, ISS_TF_FRAME))
         print(f'[Cleanup] Attempting to delete model: {instance_name}')
-        _delete_model_with_fresh_context(instance_name)
+        if node.delete_model(instance_name):
+            print(f'[Cleanup] Deleted: {instance_name}')
+        else:
+            print('[Cleanup] Delete call timed out or failed (Gazebo closed?).')
+        node.destroy_node()
+        rclpy.shutdown()
 
 
 if __name__ == '__main__':
