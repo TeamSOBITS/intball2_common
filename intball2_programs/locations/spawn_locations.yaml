@@ -1,0 +1,167 @@
+# spawn対象の固定位置定義(iss_bodyからの相対オフセット)。
+# intball2_programs/intball2_programs/lights/spawn_lights.py・delete_lights.pyが直接読む。
+# spawn_location_broadcaster.pyがこのファイルを監視してTF配信も行う(RViz確認・単体spawn用)。
+
+# iss_light1〜16: docs/gazebo_light_spawn_plan.md のテスト用仮配置。
+# dock_body(y≈-3.4)〜equipment airlock(y≈-9.0)の間にx=11.0/z=5.3で等間隔配置しただけの
+# 仮座標であり、実際の照明設置位置ではない。
+iss_light1:
+  translation:
+    x: 11.0
+    y: -3.500
+    z: 5.3
+  rotation:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+    w: 1.0
+iss_light2:
+  translation:
+    x: 11.0
+    y: -3.867
+    z: 5.3
+  rotation:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+    w: 1.0
+iss_light3:
+  translation:
+    x: 11.0
+    y: -4.233
+    z: 5.3
+  rotation:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+    w: 1.0
+iss_light4:
+  translation:
+    x: 11.0
+    y: -4.600
+    z: 5.3
+  rotation:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+    w: 1.0
+iss_light5:
+  translation:
+    x: 11.0
+    y: -4.967
+    z: 5.3
+  rotation:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+    w: 1.0
+iss_light6:
+  translation:
+    x: 11.0
+    y: -5.333
+    z: 5.3
+  rotation:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+    w: 1.0
+iss_light7:
+  translation:
+    x: 11.0
+    y: -5.700
+    z: 5.3
+  rotation:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+    w: 1.0
+iss_light8:
+  translation:
+    x: 11.0
+    y: -6.067
+    z: 5.3
+  rotation:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+    w: 1.0
+iss_light9:
+  translation:
+    x: 11.0
+    y: -6.433
+    z: 5.3
+  rotation:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+    w: 1.0
+iss_light10:
+  translation:
+    x: 11.0
+    y: -6.800
+    z: 5.3
+  rotation:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+    w: 1.0
+iss_light11:
+  translation:
+    x: 11.0
+    y: -7.167
+    z: 5.3
+  rotation:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+    w: 1.0
+iss_light12:
+  translation:
+    x: 11.0
+    y: -7.533
+    z: 5.3
+  rotation:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+    w: 1.0
+iss_light13:
+  translation:
+    x: 11.0
+    y: -7.900
+    z: 5.3
+  rotation:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+    w: 1.0
+iss_light14:
+  translation:
+    x: 11.0
+    y: -8.267
+    z: 5.3
+  rotation:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+    w: 1.0
+iss_light15:
+  translation:
+    x: 11.0
+    y: -8.633
+    z: 5.3
+  rotation:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+    w: 1.0
+iss_light16:
+  translation:
+    x: 11.0
+    y: -9.000
+    z: 5.3
+  rotation:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+    w: 1.0

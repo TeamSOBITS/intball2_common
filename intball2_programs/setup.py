@@ -33,6 +33,7 @@ setup(
         ('share/' + package_name + '/launch', glob('launch/*.py')),
         ('share/' + package_name + '/models', glob('models/*.sdf')),
         ('share/' + package_name + '/models', glob('models/*.ply')),
+        ('share/' + package_name + '/locations', glob('locations/*.yaml')),
         ('share/' + package_name + '/rviz', glob('rviz/*.rviz')),
         ('share/' + package_name + '/urdf', glob('urdf/*.urdf')),
         ('share/' + package_name + '/media/meshes/iss', glob('media/meshes/iss/*.dae')),
@@ -54,6 +55,9 @@ setup(
     entry_points={
         'console_scripts': [
             'spawn_model = intball2_programs.spawn:main',
+            'spawn_lights = intball2_programs.lights.spawn_lights:main',
+            'delete_lights = intball2_programs.lights.delete_lights:main',
+            'spawn_location_broadcaster = intball2_programs.spawn_location_broadcaster:main',
             'move_relative = intball2_programs.move_relative:main',
             'cmd_vel = intball2_programs.cmd_vel:main',
             'servise_picture = intball2_programs.servise_picture:main',

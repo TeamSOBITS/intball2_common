@@ -16,6 +16,7 @@ from intball2_programs.sim_models import (
     SIM_MODELS, ASTROBEE_COLLISION_BLOCK, ASTROBEE_VISUAL_PARTS,
     build_sim_model_xml, local_mesh_uri, astrobee_mesh_uri,
 )
+from intball2_programs.lights.light_models import LIGHT_MODELS, build_light_model_xml
 from intball2_programs.ros import (
     DeleteModelServiceClient,
     MarkerArrayPublisher,
@@ -292,7 +293,9 @@ def main():
         sys.exit(1)
 
     try:
-        if parsed.model in SIM_MODELS:
+        if parsed.model in LIGHT_MODELS:
+            model_xml = build_light_model_xml(instance_name, LIGHT_MODELS[parsed.model])
+        elif parsed.model in SIM_MODELS:
             model_xml = build_sim_model_xml(instance_name, SIM_MODELS[parsed.model], parsed.collision)
         else:
             fixed_collision_block = ASTROBEE_COLLISION_BLOCK if parsed.model == ASTROBEE_MODEL_NAME else None
@@ -320,7 +323,10 @@ def main():
         rclpy.shutdown()
         sys.exit(1)
 
-    if parsed.model in SIM_MODELS:
+    if parsed.model in LIGHT_MODELS:
+        # 光源はRVizでの可視化不要のためMarkerを出さない(docs/gazebo_light_spawn_plan.md参照)。
+        build_markers = lambda pose, stamp: []  # noqa: E731
+    elif parsed.model in SIM_MODELS:
         meta = SIM_MODELS[parsed.model]
         build_markers = lambda pose, stamp: build_mesh_markers(  # noqa: E731
             instance_name, meta, pose, ISS_TF_FRAME, stamp

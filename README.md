@@ -95,11 +95,20 @@ base
 はじめにInt‑Ball2 シミュレータを起動します．
 次にROS2 Bridgeコンテナを起動します．
 
-### 障害物生成方法
-Gazebo上のISSに対して相対的な位置に障害物を配置できます
+### RvizへのISSモデルの表示方法
 ```sh
-ros2 run intball2_programs spawn_model [引数]
+ros2 launch intball2_programs iss_model.launch.py 
 ```
+
+### 障害物生成方法
+1. 障害物を配置するTFフレームを発信します．配置場所は[spawn_locations.yaml](intball2_programs/locations/spawn_locations.yaml)に定義されています．
+    ```sh
+    ros2 run intball2_programs spawn_location_broadcaster
+    ```
+2. Gazebo上のISSに対して相対的な位置に障害物を配置できます
+    ```sh
+    ros2 run intball2_programs spawn_model [引数]
+    ```
 
 #### 引数一覧
 
@@ -120,25 +129,18 @@ ros2 run intball2_programs spawn_model [引数]
 | `box`（デフォルト: `box_obstacle`） | 直方体。サイズは`-s`、コリジョンは`-c`で制御 |
 | `human` | 地上用（standing）人物モデル。`gravity=0`のため浮遊もする |
 | `laptop` | Gazebo Fuel上のノートPCモデル |
-| `float_blue` | 浮遊人物モデル（しゃがみ浮遊姿勢・青） |
-| `float_orange` | 浮遊人物モデル（しゃがみ浮遊姿勢・オレンジ） |
-| `float_purple` | 浮遊人物モデル（しゃがみ浮遊姿勢・紫） |
-| `float2_blue` | 浮遊人物モデル（立位浮遊姿勢・青） |
-| `float2_green` | 浮遊人物モデル（立位浮遊姿勢・緑） |
-| `float2_orange` | 浮遊人物モデル（立位浮遊姿勢・オレンジ） |
-| `float2_purple` | 浮遊人物モデル（立位浮遊姿勢・紫） |
+| `float_blue`, `float_orange`, `float_purple` | 浮遊人物モデル（しゃがみ浮遊姿勢、色違い） |
+| `float2_blue`, `float2_green`, `float2_orange`, `float2_purple` | 浮遊人物モデル（立位浮遊姿勢、色違い） |
 | `tape` | 競技用テープ（Gaffers Tape）モデル |
-| `ctb_1023` | CTB（Cargo Transfer Bag）モデル |
-| `ctb_1456` | CTB（Cargo Transfer Bag）モデル |
-| `ctb_2305` | CTB（Cargo Transfer Bag）モデル |
-| `ctb_2789` | CTB（Cargo Transfer Bag）モデル |
-| `ctb_4678` | CTB（Cargo Transfer Bag）モデル |
+| `ctb_1023`, `ctb_1456`, `ctb_2305`, `ctb_2789`, `ctb_4678` | CTB（Cargo Transfer Bag）モデル（型番違い） |
 | `astrobee_freeflyer` | Astrobee free-flyerロボットモデル |
 
 `float_*`/`float2_*`/`tape`/`ctb_*`/`astrobee_freeflyer`は競技用シム（Noetic側）のローカルメッシュを
-参照しています（詳細は[docs/floating_human_spawn.md](docs/floating_human_spawn.md)・
-[docs/portable_objects_spawn.md](docs/portable_objects_spawn.md)を参照）。`-c`指定時のみ
+参照しています。`-c`指定時のみ
 コリジョンが付与され（`-s`は適用外）、未指定時は見た目のみの配置になります。
+
+照明も`-m`に指定して個別にspawnできますが、コリジョン・サイズの
+概念を持たず専用の一括コマンドもあるため、詳細は後述の「照明生成方法」を参照してください。
 
 #### 使用例
 
@@ -152,6 +154,25 @@ ros2 run intball2_programs spawn_model -m box -s 0.3 0.3 0.3 -r 0.0 0.0 90.0 -c
 # 参照フレームをworldに変更し、浮遊人物モデルをコリジョンありで配置
 ros2 run intball2_programs spawn_model -m float_blue -f iss_body -o 10.8 -6.0 4.8 -c
 ```
+
+<p align="right">(<a href="#readme-top">上に戻る</a>)</p>
+
+
+### 照明生成方法
+[spawn_locations.yam](intball2_programs/locations/spawn_locations.yaml)に定義されたISS内の照明をGazebo上にまとめて点灯・消灯できます
+
+- まとめて点灯
+    ```sh
+    ros2 run intball2_programs spawn_lights
+    ```
+- まとめて消灯    
+    ```sh
+    ros2 run intball2_programs delete_lights
+    ```
+- 単体で点灯(例)
+    ```sh
+    ros2 run intball2_programs spawn_model -m iss_light1 -f iss_light1
+    ```
 
 <p align="right">(<a href="#readme-top">上に戻る</a>)</p>
 
@@ -192,12 +213,6 @@ ros2 run intball2_programs move_relative -r 45.0
 ros2 run intball2_programs move_relative -x 0.5 -y 0.5 -z 0.5 -r 0.0 -p 0.0 -w 45.0
 ```
 
-### ISSモデルの表示方法
-Rviz2上にISSのモデルを表示させることができる
-```sh
-ros2 launch intball2_programs iss_model.launch.py 
-```
-
 ### PLYファイルの表示方法
 3D Gaussian Splatingで作成したPLYファイルを点群情報として表示することができる
 ```sh
@@ -212,6 +227,24 @@ ros2 run intball2_programs ply_publisher
 # modelsディレクトリ内のPLYファイルのパスを指定
 ply_path = os.path.join(package_share_dir, 'models', 'iss_30000.ply')
 ```
+
+<p align="right">(<a href="#readme-top">上に戻る</a>)</p>
+
+
+### ステレオ点群生成方法
+左右カメラの画像から視差画像・点群（`/stereo/points2`）を生成し、RViz等で確認できます
+```sh
+ros2 launch intball2_programs stereo_pointcloud.launch.py
+```
+
+#### パラメータ
+
+| パラメータ | 説明 | デフォルト値 |
+| --- | --- | --- |
+| `left_image_topic` | 左カメラの画像トピック | `/camera_left/image_raw` |
+| `right_image_topic` | 右カメラの画像トピック | `/camera_right/image_raw` |
+| `left_info_topic` | 左カメラのcamera_infoトピック | `/camera_left/camera_info_fixed` |
+| `right_info_topic` | 右カメラのcamera_infoトピック | `/camera_right/camera_info_fixed` |
 
 <p align="right">(<a href="#readme-top">上に戻る</a>)</p>
 
