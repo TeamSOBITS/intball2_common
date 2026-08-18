@@ -1,23 +1,35 @@
 #!/usr/bin/env python3
-"""iss_light1〜16をまとめてspawnするワンショットコマンド。
+"""iss_light_1〜16をまとめてspawnし、ISSに追従させ続けるコマンド。
 
-個別1個のspawn(`spawn_model -m iss_light1 ...`)とは違い、常駐せず一度spawnしたら
-即終了する。各lightの位置は`locations/spawn_locations.yaml`(iss_bodyからの相対オフセット)
-を直接読んで求める。TFには依存しないため、`spawn_location_broadcaster`の起動有無に関係なく
-常に動作する(docs/gazebo_light_spawn_plan.md参照)。ISS自体は動くため、絶対座標は
-そのつどISSの現在姿勢(/gazebo/model_states)と相対オフセットを合成して求める。
+各lightの位置は`locations/spawn_locations.yaml`(iss_bodyからの相対オフセット)を直接読んで
+求める(TFには依存しない)。ISS自体はGazebo world座標上で動く(ドリフトする)ため、spawn後も
+0.1秒周期でISSの現在姿勢(/gazebo/model_states)と相対オフセットを合成し直し、
+`/gazebo/set_model_state`を送り続けて追従させる(既存の単体`spawn_model`と同じ仕組み)。
+
+常駐コマンドであり、Ctrl+C(SIGINT)で停止すると同期対象だった全light(spawn成功分＋
+起動時に既に存在していた分)を自動deleteする。「起動中=点灯、Ctrl+C=消灯」という
+単体`spawn_model`と同じライフサイクル(docs/gazebo_light_spawn_plan.md参照)。
+
+`delete_lights`は通常の消灯操作ではなく、本コマンドが異常終了して消し忘れた場合の
+手動クリーンアップ用フォールバック。
 """
 import os
 import sys
 
 import rclpy
-import yaml
+from rclpy.signals import SignalHandlerOptions
 from ament_index_python.packages import get_package_share_directory
 from rclpy.node import Node
 from geometry_msgs.msg import Point, Pose
+import yaml
 
 from intball2_programs.lights.light_models import LIGHT_MODELS, build_light_model_xml
-from intball2_programs.ros import ModelStatesSubscriber, SpawnModelServiceClient
+from intball2_programs.ros import (
+    DeleteModelServiceClient,
+    ModelStatePublisher,
+    ModelStatesSubscriber,
+    SpawnModelServiceClient,
+)
 from intball2_programs.spawn import ISS_MODEL_NAME, WORLD_FRAME, rotate_vector
 
 
@@ -32,11 +44,16 @@ class SpawnLightsClient(Node):
     def __init__(self, spawn_locations):
         super().__init__('spawn_lights_client')
         self.spawn_service = SpawnModelServiceClient(self)
+        self.delete_service = DeleteModelServiceClient(self)
         self.model_states = ModelStatesSubscriber(self)
+        self.model_state_pub = ModelStatePublisher(self)
         self.spawn_locations = spawn_locations
 
     def resolve_pose(self, light_name):
-        """spawn_locations.yamlのlight_nameエントリからspawn用のPoseを求める。未定義ならNoneを返す。"""
+        """spawn_locations.yamlのlight_nameエントリと、ISSの現在姿勢からPoseを求める。
+
+        light_nameが未定義、またはISSの姿勢が未受信の場合はNoneを返す。
+        """
         entry = self.spawn_locations.get(light_name)
         if entry is None:
             return None
@@ -54,9 +71,19 @@ class SpawnLightsClient(Node):
         )
         return Pose(position=position, orientation=iss_pose.orientation)
 
+    def sync_once(self, light_name):
+        """light_nameの現在の絶対座標を計算し、/gazebo/set_model_stateへ再送する。"""
+        pose = self.resolve_pose(light_name)
+        if pose is not None:
+            self.model_state_pub.publish(light_name, pose, WORLD_FRAME)
+
 
 def main():
-    rclpy.init()
+    # rclpyの既定動作では、SIGINT受信時に自前のシグナルハンドラがcontextを即座に
+    # shutdownしてしまい、以降のクリーンアップ(delete)が壊れたcontext相手になって
+    # 失敗する。ここでは自動ハンドラを無効化し、通常のKeyboardInterruptとして
+    # Python側で受け取ってから、生きたnodeで後片付けする(spawn.pyと同じパターン)。
+    rclpy.init(signal_handler_options=SignalHandlerOptions.NO)
     spawn_locations = load_spawn_locations()
     node = SpawnLightsClient(spawn_locations)
 
@@ -105,8 +132,47 @@ def main():
     else:
         print('Failed (0): -')
 
-    node.destroy_node()
-    rclpy.shutdown()
+    # 同期・Ctrl+C時の削除対象は「今回spawnできたもの」+「起動時に既に存在していたもの」。
+    # 存在しないものを追いかけても仕方ないので対象から除く。
+    active_lights = spawned + skipped
+
+    if not active_lights:
+        node.destroy_node()
+        rclpy.shutdown()
+        sys.exit(1 if failed else 0)
+
+    print(f'\nSyncing {len(active_lights)} light(s) to ISS every 0.1s. Press Ctrl+C to turn off.')
+
+    def tick():
+        for name in active_lights:
+            node.sync_once(name)
+
+    timer = node.create_timer(0.1, tick)
+
+    try:
+        while rclpy.ok():
+            rclpy.spin_once(node, timeout_sec=0.1)
+    except KeyboardInterrupt:
+        print('\n[Shutdown] KeyboardInterrupt received.')
+    except RuntimeError as exc:
+        # SIGINTがspin_once()内のC拡張呼び出しの最中に届くと、KeyboardInterruptではなく
+        # RuntimeErrorとして飛んでくることがある(spawn.pyと同じ既知の挙動)。
+        print(f'\n[Shutdown] Received during SIGINT: {exc}')
+    finally:
+        timer.cancel()
+        print('[Cleanup] Deleting lights...')
+        deleted, delete_failed = [], []
+        for name in active_lights:
+            if node.delete_service.call(name):
+                deleted.append(name)
+            else:
+                delete_failed.append(name)
+        print(f'[Cleanup] Deleted ({len(deleted)}): {", ".join(deleted) if deleted else "-"}')
+        if delete_failed:
+            print(f'[Cleanup] Failed to delete ({len(delete_failed)}): {", ".join(delete_failed)}')
+        node.destroy_node()
+        rclpy.shutdown()
+
     sys.exit(1 if failed else 0)
 
 

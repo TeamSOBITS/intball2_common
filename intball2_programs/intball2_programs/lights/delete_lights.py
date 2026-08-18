@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""iss_light1〜16をまとめてdeleteするワンショットコマンド。"""
+"""iss_light_1〜16をまとめてdeleteするワンショットコマンド。
+
+通常の消灯操作は`spawn_lights`をCtrl+Cで止めることで行う(常駐終了時に自動delete される)。
+本コマンドは`spawn_lights`が`kill -9`やクラッシュ等で異常終了し、消し忘れた場合の
+手動クリーンアップ用フォールバックとして使う(docs/gazebo_light_spawn_plan.md参照)。
+"""
 import sys
 
 import rclpy

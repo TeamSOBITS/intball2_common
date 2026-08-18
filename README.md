@@ -159,20 +159,22 @@ ros2 run intball2_programs spawn_model -m float_blue -f iss_body -o 10.8 -6.0 4.
 
 
 ### 照明生成方法
-[spawn_locations.yam](intball2_programs/locations/spawn_locations.yaml)に定義されたISS内の照明をGazebo上にまとめて点灯・消灯できます
+[spawn_locations.yaml](intball2_programs/locations/spawn_locations.yaml)に定義されたISS内の照明をGazebo上にまとめて点灯・消灯できます
 
-- まとめて点灯
+- まとめて点灯（常駐コマンド。起動中はISSの動きに追従し続け、Ctrl+Cで消灯（自動delete）します）
     ```sh
     ros2 run intball2_programs spawn_lights
     ```
-- まとめて消灯    
-    ```sh
-    ros2 run intball2_programs delete_lights
-    ```
 - 単体で点灯(例)
     ```sh
-    ros2 run intball2_programs spawn_model -m iss_light1 -f iss_light1
+    ros2 run intball2_programs spawn_model -m iss_light_1 -f iss_light_1
     ```
+
+`delete_lights`は通常の消灯操作ではなく、`spawn_lights`が異常終了（`kill -9`等）して
+消し忘れた場合の手動クリーンアップ用フォールバックです
+```sh
+ros2 run intball2_programs delete_lights
+```
 
 <p align="right">(<a href="#readme-top">上に戻る</a>)</p>
 
