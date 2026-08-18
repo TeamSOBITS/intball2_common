@@ -11,6 +11,11 @@ def generate_launch_description():
     with open(urdf_path, 'r') as infp:
         robot_desc = infp.read()
 
+    # ib2のURDF
+    ib2_urdf_path = os.path.join(pkg_dir, 'urdf', 'ib2.urdf')
+    with open(ib2_urdf_path, 'r') as infp:
+        ib2_robot_desc = infp.read()
+
     # RViz2の設定
     rviz_config_path = os.path.join(pkg_dir, 'rviz', 'urdf.rviz')
 
@@ -25,6 +30,20 @@ def generate_launch_description():
                 'robot_description': robot_desc,
                 'publish_frequency': 50.0
             }]
+        ),
+        # ib2の状態（TF）を配信するノード
+        Node(
+            package='robot_state_publisher',
+            executable='robot_state_publisher',
+            name='ib2_state_publisher',
+            output='screen',
+            parameters=[{
+                'robot_description': ib2_robot_desc,
+                'publish_frequency': 50.0
+            }],
+            remappings=[
+                ('robot_description', 'ib2_description'),
+            ]
         ),
         # RViz2の起動
         Node(

@@ -1,0 +1,17 @@
+This repository includes third-party 3D model assets (meshes and textures)
+derived from the following project:
+
+  Int-Ball2 Simulator
+  https://github.com/jaxa/int-ball2_simulator
+  Copyright 2025 Japan Aerospace Exploration Agency (JAXA)
+  Licensed under the Apache License, Version 2.0
+  (http://www.apache.org/licenses/LICENSE-2.0)
+
+Affected files:
+  - intball2_programs/media/meshes/iss/*
+  - intball2_programs/media/meshes/int-ball2/*
+  - intball2_programs/media/materials/textures/* (ISS and Int-Ball2 related textures)
+  - intball2_programs/urdf/iss.urdf
+  - intball2_programs/urdf/ib2.urdf (adapted from the upstream ib2.urdf for ROS2/rviz use)
+
+See the Apache License, Version 2.0 for the full terms.

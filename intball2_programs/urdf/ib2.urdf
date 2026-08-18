@@ -1,0 +1,57 @@
+<?xml version="1.0"?>
+<robot name="ib2">
+
+  <link name="base" />
+
+  <link name="body">
+    <visual>
+      <geometry>
+        <mesh filename="package://intball2_programs/media/meshes/int-ball2/Int-Ball2_20241105_v2.dae" />
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+    </visual>
+    <collision>
+      <geometry>
+        <mesh filename="package://intball2_programs/media/meshes/int-ball2/Int-Ball2_20241105_v2.dae" />
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="3.324" />
+      <inertia ixx="0.01400" ixy="0.00003978" ixz="-0.00003857" iyy="0.01434" iyz="0.00001885" izz="0.01324" />
+    </inertial>
+  </link>
+
+  <joint name="joint" type="fixed">
+    <parent link="base" />
+    <child link="body" />
+  </joint>
+
+  <link name="cameraF_link" />
+  <joint name="cameraF_joint" type="fixed">
+    <parent link="body" />
+    <child link="cameraF_link" />
+    <origin xyz="0.14 0.0 0.0" rpy="0 0 0" />
+  </joint>
+
+  <link name="cameraL_link" />
+  <joint name="cameraL_joint" type="fixed">
+    <parent link="body" />
+    <child link="cameraL_link" />
+    <origin xyz="0.025 0.14 0.0" rpy="0 0 1.570796326794897" />
+  </joint>
+
+  <link name="cameraR_link" />
+  <joint name="cameraR_joint" type="fixed">
+    <parent link="body" />
+    <child link="cameraR_link" />
+    <origin xyz="-0.025 0.14 0.0" rpy="0 0 1.570796326794897" />
+  </joint>
+
+  <link name="imu_link" />
+  <joint name="imu_joint" type="fixed">
+    <parent link="body" />
+    <child link="imu_link" />
+    <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+  </joint>
+
+</robot>

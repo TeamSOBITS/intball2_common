@@ -37,7 +37,9 @@ setup(
         ('share/' + package_name + '/rviz', glob('rviz/*.rviz')),
         ('share/' + package_name + '/urdf', glob('urdf/*.urdf')),
         ('share/' + package_name + '/media/meshes/iss', glob('media/meshes/iss/*.dae')),
-        ('share/' + package_name + '/media/materials/textures', glob('media/materials/textures/*.png')),
+        ('share/' + package_name + '/media/meshes/int-ball2', glob('media/meshes/int-ball2/*.dae')),
+        ('share/' + package_name + '/media/materials/textures',
+            glob('media/materials/textures/*.png') + glob('media/materials/textures/*.jpg')),
         ]
         + mesh_data_files('media/meshes/human_obstacles', 'share/' + package_name + '/media/meshes/human_obstacles')
         + mesh_data_files('media/meshes/portable_objects', 'share/' + package_name + '/media/meshes/portable_objects'),
