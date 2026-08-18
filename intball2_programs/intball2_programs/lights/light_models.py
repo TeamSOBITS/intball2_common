@@ -1,4 +1,4 @@
-"""ISS室内照明(iss_light1〜16)のspawn用メタ情報とSDF生成処理。
+"""ISS室内照明(iss_light_1〜16)のspawn用メタ情報とSDF生成処理。
 
 方式は docs/gazebo_light_sources.md の「方式B」(モデルの<link>内に<light>タグを
 埋め込んでspawn_sdf_modelでspawnする)を採用。pose/diffuse/attenuation/direction/
@@ -11,7 +11,7 @@ typeはjpm_light1〜3と同じPOINT(全方向発光)。sunのようなDIRECTIONA
 光源は物理的な衝突判定対象ではないため、コリジョンは常になし(-cフラグ相当の概念を持たない)。
 """
 
-# iss_light1〜16は全て共通値(pose以外全同一値だったjpm_light1〜3と同じ設計思想)。
+# iss_light_1〜16は全て共通値(pose以外全同一値だったjpm_light1〜3と同じ設計思想)。
 # 明るさ = diffuse / (constant + linear*距離 + quadratic*距離^2) で近似されるため、
 # constantを1.0未満にすると距離0(光源直近)で1.0を超え白飛びする
 # (constant:0.3で試した際に実機目視確認で発生。docs/gazebo_light_spawn_plan.md参照)。
@@ -33,7 +33,7 @@ LIGHT_CAST_SHADOWS = False
 
 # 個別の位置(TFフレーム)以外は全て共通値のため、メタ情報は空dictで十分
 # (将来、特定のlightだけ値を変えたくなった場合はここに上書き値を追加する)。
-LIGHT_MODELS = {f'iss_light{i}': {} for i in range(1, 17)}
+LIGHT_MODELS = {f'iss_light_{i}': {} for i in range(1, 17)}
 
 
 def build_light_model_xml(model_name, meta):
