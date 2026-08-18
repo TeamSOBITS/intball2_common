@@ -23,12 +23,12 @@ typeはjpm_light1〜3と同じPOINT(全方向発光)。sunのようなDIRECTIONA
 # 重なった領域で明るさが積み重なり、1個だけなら適正だった値でも全体としては白飛びする。
 # attenuationの強化だけでは重なり分の積み上げを打ち消しきれなかったため、
 # diffuse自体を大きく下げて全体の底上げ量そのものを抑える方向にも調整した。
-LIGHT_DIFFUSE = (0.35, 0.35, 0.35, 1.0)
+LIGHT_DIFFUSE = (0.43, 0.43, 0.43, 1.0)
 LIGHT_SPECULAR = (0.15, 0.15, 0.15, 1.0)
 LIGHT_ATTENUATION_CONSTANT = 1.0
-LIGHT_ATTENUATION_LINEAR = 2.0
-LIGHT_ATTENUATION_QUADRATIC = 0.8
-LIGHT_RANGE = 5.0
+LIGHT_ATTENUATION_LINEAR = 1.4
+LIGHT_ATTENUATION_QUADRATIC = 0.5
+LIGHT_RANGE = 7.0
 LIGHT_CAST_SHADOWS = False
 
 # 個別の位置(TFフレーム)以外は全て共通値のため、メタ情報は空dictで十分
