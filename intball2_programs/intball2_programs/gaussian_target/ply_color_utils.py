@@ -58,12 +58,20 @@ def inspect_ply_vertex_properties(path: str):
         return props, fmt, vertex_count
 
 
-def read_dc_colors_from_ply(path: str):
+def read_dc_colors_from_ply(path: str, device: str = 'cpu'):
     """3DGS形式PLYの f_dc_0/f_dc_1/f_dc_2 を読み出し、SH DC項からRGB
     (0.0〜1.0 の Nx3 float32 ndarray) に変換して返す。
 
     f_dc_0/1/2 が存在しない場合（＝3DGS形式ではない場合）は None を返す。
     対応フォーマットは binary_little_endian のみ（3DGS PLYは通常この形式）。
+
+    Args:
+        path: PLYファイルパス。
+        device: 'cpu'（デフォルト、従来通りNumPyで計算）または
+                'cuda'（CuPyが利用可能な場合、色変換(SH_C0*f_dc+0.5のクリップ)を
+                GPU上で計算する）。
+                ※ デフォルト値'cpu'のため、deviceを指定しない既存の呼び出し元の
+                挙動・戻り値は本変更前と完全に同一。
     """
     props, fmt, vertex_count = inspect_ply_vertex_properties(path)
     prop_names = {name for name, _ in props}
@@ -94,5 +102,19 @@ def read_dc_colors_from_ply(path: str):
     ], axis=1)
 
     # color = SH_C0 * f_dc + 0.5 を [0, 1] にクリップ
+    # device='cuda' の場合のみCuPyでの計算を試みる（同じ計算式をGPU上で実行するだけで、
+    # 数式・結果の意味は device='cpu' と同一）。
+    if device == 'cuda':
+        try:
+            import cupy as cp
+            dc_gpu = cp.asarray(dc, dtype=cp.float64)
+            colors_gpu = cp.clip(SH_C0 * dc_gpu + 0.5, 0.0, 1.0)
+            return cp.asnumpy(colors_gpu)
+        except Exception:
+            # CuPy未インストール、またはGPU実行時エラーの場合は黙ってCPUにフォールバック
+            # （呼び出し元(ply_publisher.py)が事前にresolve_device()で判定している前提だが、
+            # 二重の安全策としてここでもフォールバックする）
+            pass
+
     colors = np.clip(SH_C0 * dc + 0.5, 0.0, 1.0).astype(np.float64)
     return colors

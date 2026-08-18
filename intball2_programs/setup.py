@@ -63,7 +63,9 @@ setup(
             'servise_picture = intball2_programs.servise_picture:main',
             'crop_pointcloud = intball2_programs.stereo_points.crop_pointcloud:main',
             'fix_camera_info = intball2_programs.stereo_points.fix_camera_info:main',
-            'ply_publisher = intball2_programs.ply_publisher:main',
+            'ply_publisher = intball2_programs.gaussian_target.ply_publisher:main',
+            'ply_target_extractor = intball2_programs.gaussian_target.ply_target_extractor:main',
+            'ply_candidate_generator = intball2_programs.gaussian_target.ply_candidate_generator:main',
         ],
     },
 )

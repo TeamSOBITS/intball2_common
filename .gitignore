@@ -6,4 +6,4 @@ openspec/
 /tmp
 /.vscode
 __pycache__/
-*.pyc
+*.pyc*.ply

@@ -6,18 +6,32 @@ from std_msgs.msg import Header
 import open3d as o3d
 import numpy as np
 from ament_index_python.packages import get_package_share_directory
+from .ply_color_utils import read_dc_colors_from_ply
+from .ply_gpu_utils import resolve_device, transform_points, pack_rgb_float32
 
 class PlyPublisher(Node):
     def __init__(self):
         super().__init__('ply_publisher')
         self.publisher_ = self.create_publisher(PointCloud2, 'ply_points', 10)
         self.timer = self.create_timer(2.0, self.timer_callback)
-        
+
+        # --- 追加: ROS2パラメータ宣言 ---
+        # ply_file: modelsディレクトリ内のPLYファイル名（絶対パスではなくファイル名のみ）
+        # processing_device: 'cpu' または 'cuda'。cuda指定時にCuPy/GPUが使えない場合は
+        #                     resolve_device() が自動的に 'cpu' へフォールバックする。
+        self.declare_parameter('ply_file', 'iss_30000.ply')
+        self.declare_parameter('processing_device', 'cpu')
+
+        ply_file_name = self.get_parameter('ply_file').get_parameter_value().string_value
+        requested_device = self.get_parameter('processing_device').get_parameter_value().string_value
+        self.device = resolve_device(requested_device, logger=self.get_logger())
+        self.get_logger().info(f'PLY processing device: {self.device}')
+
         # パッケージのインストールパスを取得
         package_share_dir = get_package_share_directory('intball2_programs')
-        
-        # modelsディレクトリ内のPLYファイルのパスを指定
-        ply_path = os.path.join(package_share_dir, 'models', 'iss_30000.ply')
+
+        # modelsディレクトリ内のPLYファイルのパスを指定（ファイル名はパラメータで指定可能）
+        ply_path = os.path.join(package_share_dir, 'models', ply_file_name)
         
         self.get_logger().info(f'Loading PLY file from: {ply_path}')
         
@@ -63,25 +77,27 @@ class PlyPublisher(Node):
         # 3つの回転行列を合成 (Z * Y * X の順で適用)
         R = np.dot(R_z, np.dot(R_y, R_x))
 
-        # 点群全体を回転
-        points = np.dot(points, R.T)
-        # 2. 位置（平行移動）の微調整（メートル単位）
+        # 位置（平行移動）の微調整（メートル単位）
         # 3Dモデルに重なるように、X（前後）、Y（左右）、Z（上下）の移動量を設定します
         shift_x = 3.0  # 前後にずらす量
         shift_y = 0.0  # 左右にずらす量
         shift_z = -0.7  # 上下にずらす量
-        
-        points[:, 0] += shift_x
-        points[:, 1] += shift_y
-        points[:, 2] += shift_z
+        shift = np.array([shift_x, shift_y, shift_z], dtype=np.float64)
+
+        # 点群全体に回転＋平行移動を適用（self.deviceに応じてCPU/CUDAを自動切り替え）
+        # 計算式: points = points @ R.T + shift  （元コードと同一の式）
+        points = transform_points(points, R, shift, device=self.device)
         
         self.get_logger().info(f'Loaded {len(points)} points.')
 
         # 【チェック】PLYファイル自体に色情報があるか判定
-        has_colors = pcd.has_colors()
-        self.get_logger().info(f'PLY file has colors: {has_colors}')
-
-        if has_colors:
+        sh_colors = read_dc_colors_from_ply(ply_path, device=self.device)
+        if sh_colors is not None:
+            self.get_logger().info(
+                'PLY file has 3DGS SH(f_dc_0/1/2) color information. Using it.')
+            colors = sh_colors
+        elif pcd.has_colors():
+            self.get_logger().info('PLY file has standard RGB color information.')
             colors = np.asarray(pcd.colors)
         else:
             # 元ファイルに色がない場合、プログラムが正常か確認するため、高さ(Z)に応じたグラデーション色を自動生成
@@ -125,14 +141,9 @@ class PlyPublisher(Node):
         buffer['y'] = points[:, 1]
         buffer['z'] = points[:, 2]
 
-        # 0.0~1.0 の値を 0~255 に変換
-        colors_uint8 = (colors * 255).astype(np.uint32)
-        
-        # ビットシフトで1つのuint32にパック (R << 16 | G << 8 | B)
-        rgb_packed = (colors_uint8[:, 0] << 16) | (colors_uint8[:, 1] << 8) | colors_uint8[:, 2]
-        
-        # ★重要: ビット表現をそのまま float32 に再解釈(view)して代入
-        buffer['rgb'] = rgb_packed.view(np.float32)
+        # 0.0~1.0のRGBを、PointCloud2の'rgb'フィールド用float32へビットパック
+        # （self.deviceに応じてCPU/CUDAを自動切り替え。計算式はply_gpu_utils.pack_rgb_float32を参照）
+        buffer['rgb'] = pack_rgb_float32(colors, device=self.device)
 
         self.pc2_msg.data = buffer.tobytes()
         self.get_logger().info('PointCloud2 message metadata prepared with RGB.')
