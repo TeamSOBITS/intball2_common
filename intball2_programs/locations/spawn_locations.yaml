@@ -1,5 +1,54 @@
 # spawn対象の固定位置定義(iss_bodyからの相対オフセット)。
-
+pos_obj_1:
+  rotation:
+    w: 0.0
+    x: -0.707106
+    y: 0.707106
+    z: 0.0
+  translation:
+    x: 10.95
+    y: -3.65
+    z: 5.000
+pos_obj_2:
+  rotation:
+    w: 0.0
+    x: -0.707106
+    y: 0.707106
+    z: 0.0
+  translation:
+    x: 10.95
+    y: -4.65
+    z: 5.000
+pos_obj_3:
+  rotation:
+    w: 0.0
+    x: -0.707106
+    y: 0.707106
+    z: 0.0
+  translation:
+    x: 10.95
+    y: -5.65
+    z: 5.000
+pos_obj_4:
+  rotation:
+    w: 0.0
+    x: -0.707106
+    y: 0.707106
+    z: 0.0
+  translation:
+    x: 10.95
+    y: -6.65
+    z: 5.000
+pos_obj_5:
+  rotation:
+    w: 0.0
+    x: -0.707106
+    y: 0.707106
+    z: 0.0
+  translation:
+    x: 10.95
+    y: -7.65
+    z: 5.000
 iss_light_1:
   rotation:
     w: 0.0
