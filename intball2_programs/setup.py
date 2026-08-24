@@ -56,10 +56,10 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'spawn_model = intball2_programs.spawn:main',
+            'spawn_model = intball2_programs.spawn.spawn:main',
             'spawn_lights = intball2_programs.lights.spawn_lights:main',
             'delete_lights = intball2_programs.lights.delete_lights:main',
-            'spawn_location_broadcaster = intball2_programs.spawn_location_broadcaster:main',
+            'spawn_location_broadcaster = intball2_programs.spawn.spawn_location_broadcaster:main',
             'move_relative = intball2_programs.move_relative:main',
             'cmd_vel = intball2_programs.cmd_vel:main',
             'servise_picture = intball2_programs.servise_picture:main',

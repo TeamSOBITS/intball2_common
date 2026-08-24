@@ -30,7 +30,7 @@ from intball2_programs.ros import (
     ModelStatesSubscriber,
     SpawnModelServiceClient,
 )
-from intball2_programs.spawn import ISS_MODEL_NAME, WORLD_FRAME, rotate_vector
+from intball2_programs.spawn.spawn import ISS_MODEL_NAME, WORLD_FRAME, rotate_vector
 
 
 def load_spawn_locations():
