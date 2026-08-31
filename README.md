@@ -253,19 +253,19 @@ ros2 launch intball2_programs stereo_pointcloud.launch.py
 
 ## マイルストーン
 
-現時点のバグや新規機能の依頼を確認するために[Issueページ](https://github.com/TeamSOBITS/intball_common/issues)をご覧ください．
+現時点のバグや新規機能の依頼を確認するために[Issueページ](https://github.com/TeamSOBITS/intball2_common/issues)をご覧ください．
 
 <p align="right">(<a href="#readme-top">上に戻る</a>)</p>
 
 <!-- MARKDOWN LINKS & IMAGES -->
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
-[contributors-shield]: https://img.shields.io/github/contributors/TeamSOBITS/intball_common.svg?style=for-the-badge
-[contributors-url]: https://github.com/TeamSOBITS/intball_common/graphs/contributors
-[forks-shield]: https://img.shields.io/github/forks/TeamSOBITS/intball_common.svg?style=for-the-badge
-[forks-url]: https://github.com/TeamSOBITS/intball_common/network/members
-[stars-shield]: https://img.shields.io/github/stars/TeamSOBITS/intball_common.svg?style=for-the-badge
-[stars-url]: https://github.com/TeamSOBITS/intball_common/stargazers
-[issues-shield]: https://img.shields.io/github/issues/TeamSOBITS/intball_common.svg?style=for-the-badge
-[issues-url]: https://github.com/TeamSOBITS/intball_common/issues
-[license-shield]: https://img.shields.io/github/license/TeamSOBITS/intball_common.svg?style=for-the-badge
+[contributors-shield]: https://img.shields.io/github/contributors/TeamSOBITS/intball2_common.svg?style=for-the-badge
+[contributors-url]: https://github.com/TeamSOBITS/intball2_common/graphs/contributors
+[forks-shield]: https://img.shields.io/github/forks/TeamSOBITS/intball2_common.svg?style=for-the-badge
+[forks-url]: https://github.com/TeamSOBITS/intball2_common/network/members
+[stars-shield]: https://img.shields.io/github/stars/TeamSOBITS/intball2_common.svg?style=for-the-badge
+[stars-url]: https://github.com/TeamSOBITS/intball2_common/stargazers
+[issues-shield]: https://img.shields.io/github/issues/TeamSOBITS/intball2_common.svg?style=for-the-badge
+[issues-url]: https://github.com/TeamSOBITS/intball2_common/issues
+[license-shield]: https://img.shields.io/github/license/TeamSOBITS/intball2_common.svg?style=for-the-badge
 [license-url]: LICENSE
