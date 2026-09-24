@@ -10,13 +10,18 @@ class ImageSubscriber:
         self._node = node
         self._bridge = CvBridge()
         self.cv_image = None
+        # cv_imageの撮影時刻(header.stamp)[s]。画像が新しいかどうかの判定に使う。
+        self.stamp = None
         node.create_subscription(Image, topic, self._on_message, qos)
 
     def _on_message(self, msg):
         try:
             self.cv_image = self._bridge.imgmsg_to_cv2(msg, desired_encoding="bgr8")
+            self.stamp = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
         except Exception as exc:  # cv_bridge が投げる複数例外をまとめて扱う
-            self._node.get_logger().warn(f"ImageSubscriber: failed to convert image message: {exc}")
+            self._node.get_logger().warn(
+                f"ImageSubscriber: failed to convert image message: {exc}"
+            )
 
     def wait_until_received(self, timeout_sec=5.0):
         """画像を受信するまで待機し、受信できたか(bool)を返す。"""

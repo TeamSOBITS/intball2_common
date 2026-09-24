@@ -42,23 +42,43 @@ class CtlCommandClient:
 
     def send_relative_move(self, x, y, z, roll, pitch, yaw):
         """相対移動ゴールを送信し、結果を受け取るまで同期的に待機する。成功/失敗をboolで返す。"""
+        return self._send_move(
+            x, y, z, roll, pitch, yaw,
+            frame_id='body',
+            move_type=getattr(CtlStatusType, 'MOVE_TO_RELATIVE_TARGET', 30),
+        )
+
+    def send_absolute_move(self, x, y, z, roll, pitch, yaw):
+        """dockを原点とした絶対座標(dock_bodyフレーム)へのゴールを送信する。
+
+        結果を受け取るまで同期的に待機する。成功/失敗をboolで返す。
+        """
+        return self._send_move(
+            x, y, z, roll, pitch, yaw,
+            frame_id='dock_body',
+            move_type=getattr(CtlStatusType, 'MOVE_TO_ABSOLUTE_TARGET', 40),
+        )
+
+    def _send_move(self, x, y, z, roll, pitch, yaw, frame_id, move_type):
         q = quaternion_from_euler(roll, pitch, yaw)
 
         goal_ctl = CtlCommand.Goal()
         goal_ctl.target = PoseStamped()
         goal_ctl.target.header = Header()
         goal_ctl.target.header.stamp = self._node.get_clock().now().to_msg()
-        goal_ctl.target.header.frame_id = 'body'
+        goal_ctl.target.header.frame_id = frame_id
 
         goal_ctl.target.pose = Pose()
         goal_ctl.target.pose.position = Point(x=x, y=y, z=z)
         goal_ctl.target.pose.orientation = Quaternion(x=q[0], y=q[1], z=q[2], w=q[3])
 
         move_type_obj = CtlStatusType()
-        move_type_obj.type = getattr(CtlStatusType, 'MOVE_TO_RELATIVE_TARGET', 30)
+        move_type_obj.type = move_type
         goal_ctl.type = move_type_obj
 
-        self._node.get_logger().info(f"Sending move goal: x={x}, y={y}, z={z}")
+        self._node.get_logger().info(
+            f"Sending move goal (frame={frame_id}): x={x}, y={y}, z={z}"
+        )
 
         f_goal = self._client.send_goal_async(goal_ctl)
         rclpy.spin_until_future_complete(self._node, f_goal)
