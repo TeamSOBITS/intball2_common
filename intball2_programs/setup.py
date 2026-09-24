@@ -72,6 +72,7 @@ setup(
             'ply_publisher = intball2_programs.gaussian_target.ply_publisher:main',
             'ply_target_extractor = intball2_programs.gaussian_target.ply_target_extractor:main',
             'ply_candidate_generator = intball2_programs.gaussian_target.ply_candidate_generator:main',
+            'gs_3d_image_picture = intball2_programs.gs_capture.gs_3d_image_picture:main',
         ],
     },
 )
