@@ -7,3 +7,4 @@ openspec/
 /.vscode
 __pycache__/
 *.pyc*.ply
+3dgs_pictures/
