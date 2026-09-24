@@ -61,6 +61,7 @@ setup(
             'delete_lights = intball2_programs.lights.delete_lights:main',
             'spawn_location_broadcaster = intball2_programs.spawn.spawn_location_broadcaster:main',
             'move_relative = intball2_programs.move_relative:main',
+            'move_absolute = intball2_programs.move_absolute:main',
             'cmd_vel = intball2_programs.cmd_vel:main',
             'servise_picture = intball2_programs.servise_picture:main',
             'crop_pointcloud = intball2_programs.stereo_points.crop_pointcloud:main',
