@@ -9,18 +9,21 @@ from rclpy.node import Node
 
 from intball2_programs.ros import ImageSubscriber
 
+# 保存先の既定値。ROSパラメータ output_dir で変更できる。
+DEFAULT_OUTPUT_DIR = "~/intball2_pictures"
+
+
 class Picture(Node):
     def __init__(self, topic_name="/camera_main/image_raw"):
         super().__init__('camera_node')
         self.image_sub = ImageSubscriber(self, topic_name)
+        output_dir = self.declare_parameter('output_dir', DEFAULT_OUTPUT_DIR).value
+        self.directory_path = os.path.expanduser(output_dir)
 
     def camera_picture(self, picture_name="evidence", wait_timeout=5.0):
 
-        # 1. このスクリプトが存在するディレクトリを取得
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-
-        # 2. 相対パスでディレクトリを指定 (同じフォルダ内の picture フォルダ)
-        directory_path = os.path.join(current_dir, "..", "picture/")
+        # 保存先ディレクトリ(ROSパラメータ output_dir)
+        directory_path = self.directory_path
 
         self.get_logger().info(f"picture_path: {directory_path}")
 
