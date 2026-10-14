@@ -125,6 +125,16 @@ ros2 launch intball2_programs iss_model.launch.py
 | `-o` | Offset in meters | `0.0 0.0 0.0` |
 | `-r` | Rotation in degrees | `0.0 0.0 0.0` |
 | `-c` | Enable collision flag | disabled |
+| `-d` | Drift mode. Instead of fixing the model to the ISS, leave it to physics after spawning (see below) | disabled (fixed to the ISS) |
+
+Values for `-d`:
+
+| Value | Description |
+| --- | --- |
+| `world` (when `-d` alone) | Released with zero velocity (same as score_manager). Drifts away as seen from the ISS, because the ISS rotates |
+| `iss` | Released at rest relative to the ISS. Stays nearly still as seen from the ISS (only a few cm of sway from the ISS oscillation) |
+
+With `-d`, static models (`tape`, `ctb_*`) are spawned as non-static. `-d` cannot be used with `laptop`.
 
 #### Available models
 
@@ -154,6 +164,9 @@ ros2 run intball2_programs spawn_model -m box -s 0.3 0.3 0.3 -r 0.0 0.0 90.0 -c
 
 # Change the reference frame to world and spawn a floating human model with collision
 ros2 run intball2_programs spawn_model -m float_blue -f iss_body -o 10.8 -6.0 4.8 -c
+
+# Release at rest relative to the ISS and let it drift
+ros2 run intball2_programs spawn_model -m float_blue -o 10.8 -6.0 4.8 -c -d iss
 ```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>

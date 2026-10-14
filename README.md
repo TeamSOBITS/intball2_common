@@ -125,6 +125,16 @@ ros2 launch intball2_programs iss_model.launch.py
 | `-o` | オフセット（メートル） | `0.0 0.0 0.0` |
 | `-r` | 回転角（度） | `0.0 0.0 0.0` |
 | `-c` | コリジョン有効化フラグ | 無効 |
+| `-d` | ドリフトモード。ISSに固定せず、spawn後は物理に任せて漂わせる（下記参照） | 無効（ISSに固定） |
+
+`-d`に指定できる値:
+
+| 値 | 内容 |
+| --- | --- |
+| `world`（`-d`のみの場合） | 初速0で放置（score_managerと同じ）。ISSが回転するため、ISSから見ると流れていく |
+| `iss` | ISSに対して静止した初速を与えて放置。ISSから見るとほぼ静止（ISSの振動による数cmの揺れのみ） |
+
+`-d`指定時、static なモデル（`tape`, `ctb_*`）は非staticとしてspawnされます。`laptop`には`-d`を使えません。
 
 #### spawn可能なモデル一覧
 
@@ -154,6 +164,9 @@ ros2 run intball2_programs spawn_model -m box -s 0.3 0.3 0.3 -r 0.0 0.0 90.0 -c
 
 # 参照フレームをworldに変更し、浮遊人物モデルをコリジョンありで配置
 ros2 run intball2_programs spawn_model -m float_blue -f iss_body -o 10.8 -6.0 4.8 -c
+
+# ISSに対して静止した状態で放し、漂わせる
+ros2 run intball2_programs spawn_model -m float_blue -o 10.8 -6.0 4.8 -c -d iss
 ```
 
 <p align="right">(<a href="#readme-top">上に戻る</a>)</p>
