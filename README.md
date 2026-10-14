@@ -110,11 +110,15 @@ ros2 launch intball2_programs iss_model.launch.py
     ros2 run intball2_programs spawn_model [引数]
     ```
 
+<p align="center">
+  <img src="intball2_programs/images/spawn_obstacles.jpg" alt="Gazebo上のISS内に障害物をspawnした様子．浮遊人物（float_blue），オレンジの直方体（box），CTB（ctb_1023），Astrobee（astrobee_freeflyer）を配置している．" width="800">
+</p>
+
 #### 引数一覧
 
 | 引数 | 説明 | デフォルト値 |
 | --- | --- | --- |
-| `-m` | モデル名（下記「spawn可能なモデル一覧」参照） | `box_obstacle` |
+| `-m` | モデル名（下記「spawn可能なモデル一覧」参照） | `box` |
 | `-n` | モデルインスタンス名（省略時は自動生成） | `{model}_{uuid}` |
 | `-f` | 参照フレーム | `iss_body` |
 | `-s` | サイズ（メートル、`box`系モデルのみ有効） | `0.45 0.25 1.7` |
@@ -126,7 +130,7 @@ ros2 launch intball2_programs iss_model.launch.py
 
 | `-m`に指定する値 | 内容 |
 | --- | --- |
-| `box`（デフォルト: `box_obstacle`） | 直方体。サイズは`-s`、コリジョンは`-c`で制御 |
+| `box`（デフォルト） | オレンジの直方体。サイズは`-s`、コリジョンは`-c`で制御 |
 | `human` | 地上用（standing）人物モデル。`gravity=0`のため浮遊もする |
 | `laptop` | Gazebo Fuel上のノートPCモデル |
 | `float_blue`, `float_orange`, `float_purple` | 浮遊人物モデル（しゃがみ浮遊姿勢、色違い） |
@@ -138,9 +142,6 @@ ros2 launch intball2_programs iss_model.launch.py
 `float_*`/`float2_*`/`tape`/`ctb_*`/`astrobee_freeflyer`は競技用シム（Noetic側）のローカルメッシュを
 参照しています。`-c`指定時のみ
 コリジョンが付与され（`-s`は適用外）、未指定時は見た目のみの配置になります。
-
-照明も`-m`に指定して個別にspawnできますが、コリジョン・サイズの
-概念を持たず専用の一括コマンドもあるため、詳細は後述の「照明生成方法」を参照してください。
 
 #### 使用例
 
@@ -161,8 +162,6 @@ ros2 run intball2_programs spawn_model -m float_blue -f iss_body -o 10.8 -6.0 4.
 ### 照明生成方法
 [spawn_locations.yaml](intball2_programs/locations/spawn_locations.yaml)に定義されたISS内の照明をGazebo上にまとめて点灯・消灯できます
 
-常駐コマンドです。一斉に点灯し、起動中はISSの動きに追従し続け、Ctrl+Cで一斉に消灯（自動delete）します
-
 - 全て点灯
     ```sh
     ros2 run intball2_programs spawn_lights
@@ -171,6 +170,8 @@ ros2 run intball2_programs spawn_model -m float_blue -f iss_body -o 10.8 -6.0 4.
     ```sh
     ros2 run intball2_programs spawn_lights -l iss_light_1 iss_light_3
     ```
+
+Ctrl+Cで一斉に消灯します
 
 `delete_lights`は通常の消灯操作ではなく、`spawn_lights`が異常終了（`kill -9`等）して
 消し忘れた場合の手動クリーンアップ用フォールバックです
@@ -217,26 +218,11 @@ ros2 run intball2_programs move_relative -r 45.0
 ros2 run intball2_programs move_relative -x 0.5 -y 0.5 -z 0.5 -r 0.0 -p 0.0 -w 45.0
 ```
 
-### PLYファイルの表示方法
-3D Gaussian Splatingで作成したPLYファイルを点群情報として表示することができる
-```sh
-ros2 launch intball2_programs ply_display.launch.py
-```
-
-パブリッシャーのみを起動する場合
-```sh
-ros2 run intball2_programs ply_publisher 
-```
-```sh
-# modelsディレクトリ内のPLYファイルのパスを指定
-ply_path = os.path.join(package_share_dir, 'models', 'iss_30000.ply')
-```
-
 <p align="right">(<a href="#readme-top">上に戻る</a>)</p>
 
 
 ### ステレオ点群生成方法
-左右カメラの画像から視差画像・点群（`/stereo/points2`）を生成し、RViz等で確認できます
+stereo_image_procを使用して、左右カメラの画像から視差画像・点群（`/stereo/points2`）を生成し、RViz等で確認できます
 ```sh
 ros2 launch intball2_programs stereo_pointcloud.launch.py
 ```
@@ -262,6 +248,22 @@ ros2 launch intball2_stereo stereo.launch.py
 
 <p align="right">(<a href="#readme-top">上に戻る</a>)</p>
 
+### PLYファイルの表示方法
+3D Gaussian Splattingで作成したPLYファイルを点群情報として表示することができる
+```sh
+ros2 launch intball2_programs ply_display.launch.py
+```
+
+パブリッシャーのみを起動する場合
+```sh
+ros2 run intball2_programs ply_publisher 
+```
+```sh
+# modelsディレクトリ内のPLYファイルのパスを指定
+ply_path = os.path.join(package_share_dir, 'models', 'iss_30000.ply')
+```
+
+<p align="right">(<a href="#readme-top">上に戻る</a>)</p>
 
 ## マイルストーン
 

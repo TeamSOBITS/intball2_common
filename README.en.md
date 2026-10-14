@@ -110,11 +110,15 @@ ros2 launch intball2_programs iss_model.launch.py
     ros2 run intball2_programs spawn_model [args]
     ```
 
+<p align="center">
+  <img src="intball2_programs/images/spawn_obstacles.jpg" alt="Obstacles spawned inside the ISS in Gazebo: a floating human (float_blue), an orange box (box), a CTB (ctb_1023), and an Astrobee (astrobee_freeflyer)." width="800">
+</p>
+
 #### Arguments
 
 | Argument | Description | Default |
 | --- | --- | --- |
-| `-m` | Model name (see "Available models" below) | `box_obstacle` |
+| `-m` | Model name (see "Available models" below) | `box` |
 | `-n` | Model instance name (auto-generated if omitted) | `{model}_{uuid}` |
 | `-f` | Reference frame | `iss_body` |
 | `-s` | Size in meters (only applies to `box`-type models) | `0.45 0.25 1.7` |
@@ -126,7 +130,7 @@ ros2 launch intball2_programs iss_model.launch.py
 
 | Value for `-m` | Description |
 | --- | --- |
-| `box` (default: `box_obstacle`) | Rectangular box. Size controlled by `-s`, collision by `-c` |
+| `box` (default) | Orange rectangular box. Size controlled by `-s`, collision by `-c` |
 | `human` | Standing human model on the ground. Also floats since `gravity=0` |
 | `laptop` | Laptop model from Gazebo Fuel |
 | `float_blue`, `float_orange`, `float_purple` | Floating human model (crouched floating pose, different colors) |
@@ -138,9 +142,6 @@ ros2 launch intball2_programs iss_model.launch.py
 `float_*`/`float2_*`/`tape`/`ctb_*`/`astrobee_freeflyer` reference local meshes from the
 competition simulator (Noetic side). Collision is only added when `-c` is specified
 (`-s` does not apply); otherwise only a visual model is placed.
-
-Lights can also be spawned individually via `-m`, but since they have no collision/size
-concept and a dedicated batch command exists, see "Spawning lights" below for details.
 
 #### Examples
 
@@ -161,8 +162,6 @@ ros2 run intball2_programs spawn_model -m float_blue -f iss_body -o 10.8 -6.0 4.
 ### Spawning lights
 Lights inside the ISS, defined in [spawn_locations.yaml](intball2_programs/locations/spawn_locations.yaml), can be turned on/off in Gazebo all at once.
 
-This is a foreground command. It turns the lights on all at once, keeps them following the ISS's motion while running, and turns them all off (auto-delete) on Ctrl+C.
-
 - Turn all on
     ```sh
     ros2 run intball2_programs spawn_lights
@@ -171,6 +170,8 @@ This is a foreground command. It turns the lights on all at once, keeps them fol
     ```sh
     ros2 run intball2_programs spawn_lights -l iss_light_1 iss_light_3
     ```
+
+Press Ctrl+C to turn all the lights off at once.
 
 `delete_lights` is not the normal way to turn lights off; it is a manual cleanup
 fallback for when `spawn_lights` terminates abnormally (e.g. `kill -9`) and lights
@@ -218,26 +219,11 @@ ros2 run intball2_programs move_relative -r 45.0
 ros2 run intball2_programs move_relative -x 0.5 -y 0.5 -z 0.5 -r 0.0 -p 0.0 -w 45.0
 ```
 
-### Displaying PLY files
-PLY files produced by 3D Gaussian Splatting can be displayed as point cloud data.
-```sh
-ros2 launch intball2_programs ply_display.launch.py
-```
-
-To launch only the publisher
-```sh
-ros2 run intball2_programs ply_publisher 
-```
-```sh
-# Specify the path of the PLY file inside the models directory
-ply_path = os.path.join(package_share_dir, 'models', 'iss_30000.ply')
-```
-
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 
 ### Generating stereo point clouds
-Generate a disparity image and point cloud (`/stereo/points2`) from the left/right camera images, viewable in RViz, etc.
+Generate a disparity image and point cloud (`/stereo/points2`) from the left/right camera images using stereo_image_proc, viewable in RViz, etc.
 ```sh
 ros2 launch intball2_programs stereo_pointcloud.launch.py
 ```
@@ -263,6 +249,22 @@ For details (precision profile, parameters, topics), see [intball2_stereo/README
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
+### Displaying PLY files
+PLY files produced by 3D Gaussian Splatting can be displayed as point cloud data.
+```sh
+ros2 launch intball2_programs ply_display.launch.py
+```
+
+To launch only the publisher
+```sh
+ros2 run intball2_programs ply_publisher 
+```
+```sh
+# Specify the path of the PLY file inside the models directory
+ply_path = os.path.join(package_share_dir, 'models', 'iss_30000.ply')
+```
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Milestones
 
