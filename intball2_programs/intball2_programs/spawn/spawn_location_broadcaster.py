@@ -7,8 +7,8 @@ spawn対象の位置管理用として独立して用意する(docs/gazebo_light
 `spawn_lights`/`delete_lights`はこのノードに依存せずspawn_locations.yamlを直接読むため、
 本ノードの主な用途は以下の2つ:
   - RVizでTFフレームを見ながらspawn_locations.yamlの位置を調整する
-  - `spawn_model -m iss_light1 -f iss_light1`のように、既存の汎用`-f`フレーム指定機構を
-    単体spawnで使いたい場合
+  - `spawn_model -m float_blue -f <フレーム名>`のように、既存の汎用`-f`フレーム指定機構で
+    yamlの位置へ物体をspawnしたい場合
 """
 import os
 

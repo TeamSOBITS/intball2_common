@@ -161,13 +161,15 @@ ros2 run intball2_programs spawn_model -m float_blue -f iss_body -o 10.8 -6.0 4.
 ### Spawning lights
 Lights inside the ISS, defined in [spawn_locations.yaml](intball2_programs/locations/spawn_locations.yaml), can be turned on/off in Gazebo all at once.
 
-- Turn all on (foreground command; keeps following the ISS's motion while running, and turns off (auto-delete) on Ctrl+C)
+This is a foreground command. It turns the lights on all at once, keeps them following the ISS's motion while running, and turns them all off (auto-delete) on Ctrl+C.
+
+- Turn all on
     ```sh
     ros2 run intball2_programs spawn_lights
     ```
-- Turn on a single light (example)
+- Turn on only some lights (example)
     ```sh
-    ros2 run intball2_programs spawn_model -m iss_light_1 -f iss_light_1
+    ros2 run intball2_programs spawn_lights -l iss_light_1 iss_light_3
     ```
 
 `delete_lights` is not the normal way to turn lights off; it is a manual cleanup

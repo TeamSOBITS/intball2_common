@@ -5,6 +5,10 @@
 cast_shadows等すべてSDF文字列に直接書き込むため、ROS2側gazebo_msgsのGetLightProperties/
 SetLightPropertiesがpose等のフィールドを持たない、というROS2側の制約を受けない。
 
+点灯するlightは全て1つのモデル(ALL_LIGHTS_MODEL_NAME)の1リンク内にまとめる。
+spawn/deleteが各1回で済むため一斉に点灯・消灯でき、ISS追従のset_model_stateも1周期1回で済む
+(1灯ずつ別モデルにする旧方式は、順番に点灯・消灯していた。docs/light_spawn_load_measurement.md参照)。
+
 typeはjpm_light1〜3と同じPOINT(全方向発光)。sunのようなDIRECTIONAL(位置無視・平行光線)
 ではなく、TFフレームに配置する意味を持たせるためPOINTを使う。
 
@@ -35,9 +39,36 @@ LIGHT_CAST_SHADOWS = False
 # (将来、特定のlightだけ値を変えたくなった場合はここに上書き値を追加する)。
 LIGHT_MODELS = {f'iss_light_{i}': {} for i in range(1, 17)}
 
+# 点灯するlightをまとめて入れるGazeboモデルの名前。
+ALL_LIGHTS_MODEL_NAME = 'iss_lights'
 
-def build_light_model_xml(model_name, meta):
-    """LIGHT_MODELSのメタ情報から<light>を1つ持つSDF文字列を組み立てる。
+
+def build_lights_model_xml(light_names, spawn_locations):
+    """light_namesの<light>を1リンク内に並べた、ALL_LIGHTS_MODEL_NAMEのSDF文字列を組み立てる。
+
+    モデル原点をISS(iss_body)に一致させて置く前提で、各<light>のposeには
+    spawn_locations(iss_bodyからの相対オフセット)のtranslationをそのまま使う。
+    POINT光源は向きを持たないため、rotationは使わない。
+    """
+    lights_xml = ''.join(
+        _build_light_xml(name, LIGHT_MODELS[name], spawn_locations[name]['translation'])
+        for name in light_names
+    )
+    return (
+        '<?xml version="1.0"?>\n'
+        '<sdf version="1.6">\n'
+        f'  <model name="{ALL_LIGHTS_MODEL_NAME}">\n'
+        '    <static>true</static>\n'
+        '    <link name="link">\n'
+        f'{lights_xml}'
+        '    </link>\n'
+        '  </model>\n'
+        '</sdf>\n'
+    )
+
+
+def _build_light_xml(light_name, meta, translation):
+    """<light>要素1つ分のSDF文字列を組み立てる。
 
     metaは現状未使用(全て共通値)だが、将来の個別上書きに備えて引数として受け取る。
     """
@@ -50,14 +81,11 @@ def build_light_model_xml(model_name, meta):
     cast_shadows = meta.get('cast_shadows', LIGHT_CAST_SHADOWS)
     cast_shadows_str = 'true' if cast_shadows else 'false'
 
+    x, y, z = translation['x'], translation['y'], translation['z']
+
     return (
-        '<?xml version="1.0"?>\n'
-        '<sdf version="1.6">\n'
-        f'  <model name="{model_name}">\n'
-        '    <static>true</static>\n'
-        '    <link name="link">\n'
-        f'      <light name="{model_name}" type="point">\n'
-        '        <pose>0 0 0 0 0 0</pose>\n'
+        f'      <light name="{light_name}" type="point">\n'
+        f'        <pose>{x} {y} {z} 0 0 0</pose>\n'
         f'        <diffuse>{diffuse_str}</diffuse>\n'
         f'        <specular>{specular_str}</specular>\n'
         '        <attenuation>\n'
@@ -68,7 +96,4 @@ def build_light_model_xml(model_name, meta):
         '        </attenuation>\n'
         f'        <cast_shadows>{cast_shadows_str}</cast_shadows>\n'
         '      </light>\n'
-        '    </link>\n'
-        '  </model>\n'
-        '</sdf>\n'
     )

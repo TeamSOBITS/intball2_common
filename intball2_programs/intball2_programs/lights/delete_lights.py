@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""iss_light_1〜16をまとめてdeleteするワンショットコマンド。
+"""照明モデル(ALL_LIGHTS_MODEL_NAME)をdeleteするワンショットコマンド。
 
 通常の消灯操作は`spawn_lights`をCtrl+Cで止めることで行う(常駐終了時に自動delete される)。
 本コマンドは`spawn_lights`が`kill -9`やクラッシュ等で異常終了し、消し忘れた場合の
@@ -10,42 +10,31 @@ import sys
 import rclpy
 from rclpy.node import Node
 
-from intball2_programs.lights.light_models import LIGHT_MODELS
-from intball2_programs.ros import DeleteModelServiceClient, ModelStatesSubscriber
+from intball2_programs.lights.light_models import ALL_LIGHTS_MODEL_NAME
+from intball2_programs.ros import DeleteModelServiceClient, GetModelStateServiceClient
 
 
 def main():
     rclpy.init()
     node = Node('delete_lights_client')
     delete_service = DeleteModelServiceClient(node)
-    model_states = ModelStatesSubscriber(node)
+    get_state = GetModelStateServiceClient(node)
 
-    try:
-        model_states.wait_until_received(timeout_sec=5.0)
-        existing_names = set(model_states.model_states.name)
-    except RuntimeError as exc:
-        node.get_logger().warn(str(exc))
-        existing_names = set()
-
-    deleted, skipped, failed = [], [], []
-
-    for name in LIGHT_MODELS:
-        if name not in existing_names:
-            skipped.append(name)
-            continue
-        if delete_service.call(name):
-            deleted.append(name)
-        else:
-            failed.append(name)
-
-    print('\n=== delete_lights summary ===')
-    print(f'Deleted ({len(deleted)}): {", ".join(deleted) if deleted else "-"}')
-    print(f'Skipped, not found ({len(skipped)}): {", ".join(skipped) if skipped else "-"}')
-    print(f'Failed ({len(failed)}): {", ".join(failed) if failed else "-"}')
+    if not get_state.wait_for_service(timeout_sec=10.0):
+        code = 1
+    elif get_state.call(ALL_LIGHTS_MODEL_NAME) is None:
+        print(f'{ALL_LIGHTS_MODEL_NAME}: not found, nothing to delete.')
+        code = 0
+    elif delete_service.call(ALL_LIGHTS_MODEL_NAME):
+        print(f'{ALL_LIGHTS_MODEL_NAME}: deleted.')
+        code = 0
+    else:
+        print(f'{ALL_LIGHTS_MODEL_NAME}: failed to delete.')
+        code = 1
 
     node.destroy_node()
     rclpy.shutdown()
-    sys.exit(1 if failed else 0)
+    sys.exit(code)
 
 
 if __name__ == '__main__':

@@ -1,36 +1,36 @@
 #!/usr/bin/env python3
-"""iss_light_1〜16をまとめてspawnし、ISSに追従させ続けるコマンド。
+"""ISS室内照明(iss_light_1〜16)を一斉に点灯し、ISSに追従させ続けるコマンド。
+
+点灯するlightは全て1つのモデル(ALL_LIGHTS_MODEL_NAME)にまとめてspawnするため、
+spawn/delete各1回で一斉に点灯・消灯できる。`-l`で点灯するlightを選べる(省略時は全light)。
 
 各lightの位置は`locations/spawn_locations.yaml`(iss_bodyからの相対オフセット)を直接読んで
 求める(TFには依存しない)。ISS自体はGazebo world座標上で動く(ドリフトする)ため、spawn後も
-0.1秒周期でISSの現在姿勢(/gazebo/model_states)と相対オフセットを合成し直し、
-`/gazebo/set_model_state`を送り続けて追従させる(既存の単体`spawn_model`と同じ仕組み)。
+0.1秒周期でモデルをISSの現在姿勢へ`/gazebo/set_model_state`し直して追従させる
+(spawn/iss_follower.py)。
 
-常駐コマンドであり、Ctrl+C(SIGINT)で停止すると同期対象だった全light(spawn成功分＋
-起動時に既に存在していた分)を自動deleteする。「起動中=点灯、Ctrl+C=消灯」という
-単体`spawn_model`と同じライフサイクル(docs/gazebo_light_spawn_plan.md参照)。
+常駐コマンドであり、Ctrl+C(SIGINT)で停止するとモデルを自動deleteする
+(起動中=点灯、Ctrl+C=消灯)。
 
 `delete_lights`は通常の消灯操作ではなく、本コマンドが異常終了して消し忘れた場合の
 手動クリーンアップ用フォールバック。
 """
+import argparse
 import os
 import sys
 
 import rclpy
 from rclpy.signals import SignalHandlerOptions
+from rclpy.utilities import remove_ros_args
 from ament_index_python.packages import get_package_share_directory
 from rclpy.node import Node
-from geometry_msgs.msg import Point, Pose
 import yaml
 
-from intball2_programs.lights.light_models import LIGHT_MODELS, build_light_model_xml
-from intball2_programs.ros import (
-    DeleteModelServiceClient,
-    ModelStatePublisher,
-    ModelStatesSubscriber,
-    SpawnModelServiceClient,
+from intball2_programs.lights.light_models import (
+    ALL_LIGHTS_MODEL_NAME, LIGHT_MODELS, build_lights_model_xml,
 )
-from intball2_programs.spawn.spawn import ISS_MODEL_NAME, WORLD_FRAME, rotate_vector
+from intball2_programs.ros import DeleteModelServiceClient, SpawnModelServiceClient
+from intball2_programs.spawn.iss_follower import IssFollower, WORLD_FRAME
 
 
 def load_spawn_locations():
@@ -40,112 +40,68 @@ def load_spawn_locations():
         return yaml.safe_load(handle) or {}
 
 
+def parse_args(argv):
+    parser = argparse.ArgumentParser(description='ISS室内照明を一斉に点灯し、ISSに追従させる。')
+    parser.add_argument(
+        '-l', dest='lights', nargs='+', choices=list(LIGHT_MODELS), metavar='NAME',
+        help='点灯するlight名 (省略時は全light)。例: -l iss_light_1 iss_light_3',
+    )
+    return parser.parse_args(argv)
+
+
 class SpawnLightsClient(Node):
-    def __init__(self, spawn_locations):
+    def __init__(self):
         super().__init__('spawn_lights_client')
         self.spawn_service = SpawnModelServiceClient(self)
         self.delete_service = DeleteModelServiceClient(self)
-        self.model_states = ModelStatesSubscriber(self)
-        self.model_state_pub = ModelStatePublisher(self)
-        self.spawn_locations = spawn_locations
+        self.iss_follower = IssFollower(self)
 
-    def resolve_pose(self, light_name):
-        """spawn_locations.yamlのlight_nameエントリと、ISSの現在姿勢からPoseを求める。
 
-        light_nameが未定義、またはISSの姿勢が未受信の場合はNoneを返す。
-        """
-        entry = self.spawn_locations.get(light_name)
-        if entry is None:
-            return None
-        iss_pose = self.model_states.get_pose(ISS_MODEL_NAME)
-        if iss_pose is None:
-            return None
-        translation = [
-            entry['translation']['x'], entry['translation']['y'], entry['translation']['z'],
-        ]
-        offset_rot = rotate_vector(iss_pose.orientation, translation)
-        position = Point(
-            x=iss_pose.position.x + offset_rot[0],
-            y=iss_pose.position.y + offset_rot[1],
-            z=iss_pose.position.z + offset_rot[2],
-        )
-        return Pose(position=position, orientation=iss_pose.orientation)
-
-    def sync_once(self, light_name):
-        """light_nameの現在の絶対座標を計算し、/gazebo/set_model_stateへ再送する。"""
-        pose = self.resolve_pose(light_name)
-        if pose is not None:
-            self.model_state_pub.publish(light_name, pose, WORLD_FRAME)
+def _exit(node, code):
+    node.destroy_node()
+    rclpy.shutdown()
+    sys.exit(code)
 
 
 def main():
+    args = parse_args(remove_ros_args(sys.argv)[1:])
+    light_names = list(dict.fromkeys(args.lights)) if args.lights else list(LIGHT_MODELS)
+
     # rclpyの既定動作では、SIGINT受信時に自前のシグナルハンドラがcontextを即座に
     # shutdownしてしまい、以降のクリーンアップ(delete)が壊れたcontext相手になって
     # 失敗する。ここでは自動ハンドラを無効化し、通常のKeyboardInterruptとして
     # Python側で受け取ってから、生きたnodeで後片付けする(spawn.pyと同じパターン)。
     rclpy.init(signal_handler_options=SignalHandlerOptions.NO)
     spawn_locations = load_spawn_locations()
-    node = SpawnLightsClient(spawn_locations)
+    node = SpawnLightsClient()
+
+    undefined = [name for name in light_names if name not in spawn_locations]
+    if undefined:
+        node.get_logger().error(f'Not found in spawn_locations.yaml: {", ".join(undefined)}')
+        _exit(node, 1)
 
     if not node.spawn_service.wait_for_service(timeout_sec=10.0):
-        node.destroy_node()
-        rclpy.shutdown()
-        sys.exit(1)
+        _exit(node, 1)
+    if not node.iss_follower.wait_until_ready():
+        _exit(node, 1)
 
-    try:
-        node.model_states.wait_until_received(timeout_sec=5.0)
-    except RuntimeError as exc:
-        node.get_logger().error(str(exc))
-        node.destroy_node()
-        rclpy.shutdown()
-        sys.exit(1)
+    if node.iss_follower.exists(ALL_LIGHTS_MODEL_NAME):
+        node.get_logger().error(
+            f'{ALL_LIGHTS_MODEL_NAME} already exists in Gazebo. Run "delete_lights" first.'
+        )
+        _exit(node, 1)
 
-    existing_names = set(node.model_states.model_states.name)
+    model_xml = build_lights_model_xml(light_names, spawn_locations)
+    pose = node.iss_follower.to_world_pose()
+    if not node.spawn_service.call(ALL_LIGHTS_MODEL_NAME, model_xml, pose, WORLD_FRAME):
+        _exit(node, 1)
 
-    spawned, skipped, failed = [], [], []
-
-    for name, meta in LIGHT_MODELS.items():
-        if name in existing_names:
-            node.get_logger().warn(f'{name}: already exists in /gazebo/model_states, skipping.')
-            skipped.append(name)
-            continue
-
-        pose = node.resolve_pose(name)
-        if pose is None:
-            node.get_logger().error(f'{name}: not found in spawn_locations.yaml, skipping spawn.')
-            failed.append((name, 'location not defined'))
-            continue
-
-        model_xml = build_light_model_xml(name, meta)
-        if node.spawn_service.call(name, model_xml, pose, WORLD_FRAME):
-            spawned.append(name)
-        else:
-            failed.append((name, 'spawn service failed'))
-
-    print('\n=== spawn_lights summary ===')
-    print(f'Spawned ({len(spawned)}): {", ".join(spawned) if spawned else "-"}')
-    print(f'Skipped, already existed ({len(skipped)}): {", ".join(skipped) if skipped else "-"}')
-    if failed:
-        print(f'Failed ({len(failed)}):')
-        for name, reason in failed:
-            print(f'  - {name}: {reason}')
-    else:
-        print('Failed (0): -')
-
-    # 同期・Ctrl+C時の削除対象は「今回spawnできたもの」+「起動時に既に存在していたもの」。
-    # 存在しないものを追いかけても仕方ないので対象から除く。
-    active_lights = spawned + skipped
-
-    if not active_lights:
-        node.destroy_node()
-        rclpy.shutdown()
-        sys.exit(1 if failed else 0)
-
-    print(f'\nSyncing {len(active_lights)} light(s) to ISS every 0.1s. Press Ctrl+C to turn off.')
+    print(f'\nLights on ({len(light_names)}): {", ".join(light_names)}')
+    print('Syncing to ISS every 0.1s. Press Ctrl+C to turn off.')
 
     def tick():
-        for name in active_lights:
-            node.sync_once(name)
+        node.iss_follower.request_update()
+        node.iss_follower.publish(ALL_LIGHTS_MODEL_NAME)
 
     timer = node.create_timer(0.1, tick)
 
@@ -161,19 +117,12 @@ def main():
     finally:
         timer.cancel()
         print('[Cleanup] Deleting lights...')
-        deleted, delete_failed = [], []
-        for name in active_lights:
-            if node.delete_service.call(name):
-                deleted.append(name)
-            else:
-                delete_failed.append(name)
-        print(f'[Cleanup] Deleted ({len(deleted)}): {", ".join(deleted) if deleted else "-"}')
-        if delete_failed:
-            print(f'[Cleanup] Failed to delete ({len(delete_failed)}): {", ".join(delete_failed)}')
+        if node.delete_service.call(ALL_LIGHTS_MODEL_NAME):
+            print(f'[Cleanup] Deleted: {ALL_LIGHTS_MODEL_NAME}')
+        else:
+            print(f'[Cleanup] Failed to delete {ALL_LIGHTS_MODEL_NAME}. Run "delete_lights".')
         node.destroy_node()
         rclpy.shutdown()
-
-    sys.exit(1 if failed else 0)
 
 
 if __name__ == '__main__':

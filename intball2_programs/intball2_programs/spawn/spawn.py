@@ -11,19 +11,18 @@ import rclpy
 import yaml
 from rclpy.node import Node
 from rclpy.signals import SignalHandlerOptions
-from geometry_msgs.msg import Pose, Point, Quaternion
+from geometry_msgs.msg import Pose, Point
 from visualization_msgs.msg import Marker
 
 from intball2_programs.spawn.sim_models import (
     SIM_MODELS, ASTROBEE_COLLISION_BLOCK, ASTROBEE_VISUAL_PARTS,
     build_sim_model_xml, local_mesh_uri, astrobee_mesh_uri,
 )
-from intball2_programs.lights.light_models import LIGHT_MODELS, build_light_model_xml
+from intball2_programs.spawn.iss_follower import IssFollower, WORLD_FRAME
+from intball2_programs.spawn.quaternion import quaternion_multiply, rpy_deg_to_quaternion
 from intball2_programs.ros import (
     DeleteModelServiceClient,
     MarkerArrayPublisher,
-    ModelStatePublisher,
-    ModelStatesSubscriber,
     SpawnModelServiceClient,
     TFClient,
 )
@@ -34,8 +33,6 @@ DEFAULT_SIZE = (0.45, 0.25, 1.7)
 DEFAULT_OFFSET = (0.0, 0.0, 0.0)
 DEFAULT_RPY = (0.0, 0.0, 0.0)
 DEFAULT_FRAME = 'iss_body'
-WORLD_FRAME = 'world'
-ISS_MODEL_NAME = 'iss'
 ISS_TF_FRAME = 'iss_body'
 
 # astrobee_freeflyer は複数visual/複数collisionの特殊構成のため、SIM_MODELS辞書ではなく
@@ -48,16 +45,12 @@ class SpawnBoxClient(Node):
         super().__init__('spawn_box_client')
         self.spawn_service = SpawnModelServiceClient(self)
         self.delete_service = DeleteModelServiceClient(self)
-        self.model_states = ModelStatesSubscriber(self)
-        self.model_state_pub = ModelStatePublisher(self)
+        self.iss_follower = IssFollower(self)
         self.tf_client = TFClient(self)
         self.marker_pub = MarkerArrayPublisher(self, topic='spawned_model_markers')
 
     def wait_service(self, timeout_sec=10.0):
         return self.spawn_service.wait_for_service(timeout_sec)
-
-    def wait_for_model_states(self, timeout_sec=5.0):
-        self.model_states.wait_until_received(timeout_sec)
 
     def spawn(self, name, model_xml, pose, reference_frame):
         return self.spawn_service.call(name, model_xml, pose, reference_frame)
@@ -66,20 +59,8 @@ class SpawnBoxClient(Node):
         return self.delete_service.call(name)
 
     def build_pose(self, frame, offset, rpy):
-        iss_pose = self.model_states.get_pose(ISS_MODEL_NAME)
-        if iss_pose is None:
-            raise RuntimeError(f'Model not found in /gazebo/model_states: {ISS_MODEL_NAME}')
-
         relative_pos = self._resolve_offset(frame, offset)
-        iss_rotation = iss_pose.orientation
-        offset_rot = rotate_vector(iss_rotation, relative_pos)
-        position = Point(
-            x=iss_pose.position.x + offset_rot[0],
-            y=iss_pose.position.y + offset_rot[1],
-            z=iss_pose.position.z + offset_rot[2],
-        )
-        orientation = quaternion_multiply(iss_rotation, rpy_deg_to_quaternion(*rpy))
-        return Pose(position=position, orientation=orientation)
+        return self.iss_follower.to_world_pose(relative_pos, rpy_deg_to_quaternion(*rpy))
 
     def build_relative_pose(self, frame, offset, rpy):
         """rviz表示用。iss_bodyフレームでの相対姿勢(Gazebo world座標への変換なし)を返す。
@@ -104,12 +85,9 @@ class SpawnBoxClient(Node):
         return [translation[i] + manual_offset[i] for i in range(3)]
 
     def publish_sync(self, instance_name, frame, offset, rpy):
-        try:
-            pose = self.build_pose(frame, offset, rpy)
-        except RuntimeError as exc:
-            self.get_logger().warn(str(exc))
-            return
-        self.model_state_pub.publish(instance_name, pose, WORLD_FRAME)
+        self.iss_follower.request_update()
+        relative_pos = self._resolve_offset(frame, offset)
+        self.iss_follower.publish(instance_name, relative_pos, rpy_deg_to_quaternion(*rpy))
 
 
 def build_collision_block(size_x, size_y, size_z):
@@ -120,41 +98,6 @@ def build_collision_block(size_x, size_y, size_z):
         '        </geometry>\n'
         '      </collision>\n'
     )
-
-
-def rpy_deg_to_quaternion(roll_deg, pitch_deg, yaw_deg):
-    roll = math.radians(roll_deg)
-    pitch = math.radians(pitch_deg)
-    yaw = math.radians(yaw_deg)
-    cy, sy = math.cos(yaw * 0.5), math.sin(yaw * 0.5)
-    cp, sp = math.cos(pitch * 0.5), math.sin(pitch * 0.5)
-    cr, sr = math.cos(roll * 0.5), math.sin(roll * 0.5)
-    return Quaternion(
-        x=sr * cp * cy - cr * sp * sy,
-        y=cr * sp * cy + sr * cp * sy,
-        z=cr * cp * sy - sr * sp * cy,
-        w=cr * cp * cy + sr * sp * sy,
-    )
-
-
-def quaternion_conjugate(q):
-    return Quaternion(x=-q.x, y=-q.y, z=-q.z, w=q.w)
-
-
-def quaternion_multiply(q1, q2):
-    return Quaternion(
-        w=q1.w * q2.w - q1.x * q2.x - q1.y * q2.y - q1.z * q2.z,
-        x=q1.w * q2.x + q1.x * q2.w + q1.y * q2.z - q1.z * q2.y,
-        y=q1.w * q2.y - q1.x * q2.z + q1.y * q2.w + q1.z * q2.x,
-        z=q1.w * q2.z + q1.x * q2.y - q1.y * q2.x + q1.z * q2.w,
-    )
-
-
-def rotate_vector(q, vector):
-    vec_quat = Quaternion(x=vector[0], y=vector[1], z=vector[2], w=0.0)
-    q_conj = quaternion_conjugate(q)
-    rotated = quaternion_multiply(quaternion_multiply(q, vec_quat), q_conj)
-    return rotated.x, rotated.y, rotated.z
 
 
 def _new_marker(ns, marker_id, frame_id, stamp, marker_type):
@@ -258,10 +201,11 @@ def _sdf_model_names():
 
 
 def available_model_names():
-    """-hのhelp文字列用。LIGHT_MODELS/SIM_MODELS/models/*.sdfを都度読み直すため、
+    """-hのhelp文字列用。SIM_MODELS/models/*.sdfを都度読み直すため、
     どれかに項目が増減すれば次回の-h実行時から自動で反映される。
+    照明(iss_light_*)は`spawn_lights`で扱うため対象外。
     """
-    names = set(LIGHT_MODELS) | set(SIM_MODELS) | set(_sdf_model_names())
+    names = set(SIM_MODELS) | set(_sdf_model_names())
     return sorted(names)
 
 
@@ -342,9 +286,7 @@ def main():
         sys.exit(1)
 
     try:
-        if parsed.model in LIGHT_MODELS:
-            model_xml = build_light_model_xml(instance_name, LIGHT_MODELS[parsed.model])
-        elif parsed.model in SIM_MODELS:
+        if parsed.model in SIM_MODELS:
             model_xml = build_sim_model_xml(instance_name, SIM_MODELS[parsed.model], parsed.collision)
         else:
             fixed_collision_block = ASTROBEE_COLLISION_BLOCK if parsed.model == ASTROBEE_MODEL_NAME else None
@@ -353,7 +295,8 @@ def main():
                 template, instance_name, parsed.size, parsed.collision,
                 fixed_collision_block=fixed_collision_block,
             )
-        node.wait_for_model_states()
+        if not node.iss_follower.wait_until_ready():
+            raise RuntimeError('Failed to get ISS pose.')
         pose = node.build_pose(parsed.frame, parsed.offset, parsed.rpy)
         ok = node.spawn(instance_name, model_xml, pose, WORLD_FRAME)
     except FileNotFoundError as exc:
@@ -372,10 +315,7 @@ def main():
         rclpy.shutdown()
         sys.exit(1)
 
-    if parsed.model in LIGHT_MODELS:
-        # 光源はRVizでの可視化不要のためMarkerを出さない(docs/gazebo_light_spawn_plan.md参照)。
-        build_markers = lambda pose, stamp: []  # noqa: E731
-    elif parsed.model in SIM_MODELS:
+    if parsed.model in SIM_MODELS:
         meta = SIM_MODELS[parsed.model]
         build_markers = lambda pose, stamp: build_mesh_markers(  # noqa: E731
             instance_name, meta, pose, ISS_TF_FRAME, stamp
