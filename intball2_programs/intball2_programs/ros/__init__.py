@@ -1,6 +1,7 @@
 from intball2_programs.ros.complete_publisher import CompletePublisher
 from intball2_programs.ros.ctl_command_client import CtlCommandClient
 from intball2_programs.ros.delete_model_service_client import DeleteModelServiceClient
+from intball2_programs.ros.get_model_state_service_client import GetModelStateServiceClient
 from intball2_programs.ros.image_subscriber import ImageSubscriber
 from intball2_programs.ros.marker_array_publisher import MarkerArrayPublisher
 from intball2_programs.ros.model_state_publisher import ModelStatePublisher
