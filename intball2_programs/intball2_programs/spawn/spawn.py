@@ -9,6 +9,7 @@ import uuid
 from ament_index_python.packages import get_package_share_directory
 import rclpy
 import yaml
+from rclpy.duration import Duration
 from rclpy.node import Node
 from rclpy.signals import SignalHandlerOptions
 from geometry_msgs.msg import Pose, Point
@@ -46,7 +47,6 @@ class SpawnBoxClient(Node):
         self.spawn_service = SpawnModelServiceClient(self)
         self.delete_service = DeleteModelServiceClient(self)
         self.iss_follower = IssFollower(self)
-        self.tf_client = TFClient(self)
         self.marker_pub = MarkerArrayPublisher(self, topic='spawned_model_markers')
 
     def wait_service(self, timeout_sec=10.0):
@@ -58,35 +58,48 @@ class SpawnBoxClient(Node):
     def delete_model(self, name):
         return self.delete_service.call(name)
 
-    def build_pose(self, frame, offset, rpy):
-        relative_pos = self._resolve_offset(frame, offset)
+    def build_pose(self, relative_pos, rpy):
         return self.iss_follower.to_world_pose(relative_pos, rpy_deg_to_quaternion(*rpy))
 
-    def build_relative_pose(self, frame, offset, rpy):
+    def build_relative_pose(self, relative_pos, rpy):
         """rviz表示用。iss_bodyフレームでの相対姿勢(Gazebo world座標への変換なし)を返す。
 
         rvizのFixed Frameは常にiss_body(このrviz.rvizのGlobal Options参照)なので、
         build_pose()のようにiss_pose(Gazebo world内での実際のISS姿勢)を合成する必要がない。
         """
-        relative_pos = self._resolve_offset(frame, offset)
         return Pose(
             position=Point(x=relative_pos[0], y=relative_pos[1], z=relative_pos[2]),
             orientation=rpy_deg_to_quaternion(*rpy),
         )
 
-    def _resolve_offset(self, target_frame, manual_offset):
+    def resolve_offset(self, target_frame, manual_offset, timeout_sec=5.0):
+        """iss_bodyから見たtarget_frame原点 + manual_offset を返す。取得できなければNone。
+
+        -fのフレーム(iss_bodyやspawn_locations.yamlの位置)はISSに固定されており、
+        iss_bodyから見た位置は変わらないため、起動時に1回だけTFから取得する。
+        /tfは約565Hzで届き、購読し続けるだけでCPUを大きく使うため、取得後は購読をやめる
+        (docs/light_spawn_load_measurement.md参照)。
+        """
         if not target_frame or target_frame == ISS_TF_FRAME:
-            return manual_offset
-        translation = self.tf_client.lookup_translation(
-            ISS_TF_FRAME, target_frame, logger=self.get_logger()
-        )
+            return list(manual_offset)
+        tf_client = TFClient(self)
+        deadline = self.get_clock().now() + Duration(seconds=timeout_sec)
+        translation = None
+        while rclpy.ok() and self.get_clock().now() < deadline:
+            translation = tf_client.lookup_translation(ISS_TF_FRAME, target_frame)
+            if translation is not None:
+                break
+            rclpy.spin_once(self, timeout_sec=0.1)
+        tf_client.destroy()
         if translation is None:
-            return manual_offset
+            self.get_logger().error(
+                f'TF lookup failed for {target_frame} -> {ISS_TF_FRAME} within {timeout_sec}s.'
+            )
+            return None
         return [translation[i] + manual_offset[i] for i in range(3)]
 
-    def publish_sync(self, instance_name, frame, offset, rpy):
+    def publish_sync(self, instance_name, relative_pos, rpy):
         self.iss_follower.request_update()
-        relative_pos = self._resolve_offset(frame, offset)
         self.iss_follower.publish(instance_name, relative_pos, rpy_deg_to_quaternion(*rpy))
 
 
@@ -295,9 +308,12 @@ def main():
                 template, instance_name, parsed.size, parsed.collision,
                 fixed_collision_block=fixed_collision_block,
             )
+        relative_pos = node.resolve_offset(parsed.frame, parsed.offset)
+        if relative_pos is None:
+            raise RuntimeError(f'Failed to resolve frame: {parsed.frame}')
         if not node.iss_follower.wait_until_ready():
             raise RuntimeError('Failed to get ISS pose.')
-        pose = node.build_pose(parsed.frame, parsed.offset, parsed.rpy)
+        pose = node.build_pose(relative_pos, parsed.rpy)
         ok = node.spawn(instance_name, model_xml, pose, WORLD_FRAME)
     except FileNotFoundError as exc:
         node.get_logger().error(str(exc))
@@ -330,11 +346,11 @@ def main():
         )
 
     marker_count = 0
+    relative_pose = node.build_relative_pose(relative_pos, parsed.rpy)
 
     def tick():
         nonlocal marker_count
-        node.publish_sync(instance_name, parsed.frame, parsed.offset, parsed.rpy)
-        relative_pose = node.build_relative_pose(parsed.frame, parsed.offset, parsed.rpy)
+        node.publish_sync(instance_name, relative_pos, parsed.rpy)
         markers = build_markers(relative_pose, node.get_clock().now().to_msg())
         marker_count = len(markers)
         node.marker_pub.publish(markers)

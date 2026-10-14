@@ -9,6 +9,10 @@ class TFClient:
         self._buffer = tf2_ros.Buffer()
         self._listener = tf2_ros.TransformListener(self._buffer, node)
 
+    def destroy(self):
+        """/tf, /tf_staticの購読をやめる(必要なTFを取得し終えた後の負荷削減用)。"""
+        self._listener.unregister()
+
     def lookup_translation(self, target_frame, source_frame, logger=None):
         """target_frame から見た source_frame の原点の平行移動[x, y, z]を返す。
 
