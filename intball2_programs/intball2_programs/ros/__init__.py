@@ -12,6 +12,7 @@ from intball2_programs.ros.path_markers import (
     make_line_strip_marker,
     make_text_marker,
 )
+from intball2_programs.ros.set_model_state_service_client import SetModelStateServiceClient
 from intball2_programs.ros.spawn_model_service_client import SpawnModelServiceClient
 from intball2_programs.ros.tf_client import TFClient
 from intball2_programs.ros.user_node_status_publisher import UserNodeStatusPublisher
