@@ -29,12 +29,16 @@ from intball2_programs.ros import (
 )
 
 
-DEFAULT_MODEL = 'box_obstacle'
+DEFAULT_MODEL = 'box'
 DEFAULT_SIZE = (0.45, 0.25, 1.7)
 DEFAULT_OFFSET = (0.0, 0.0, 0.0)
 DEFAULT_RPY = (0.0, 0.0, 0.0)
 DEFAULT_FRAME = 'iss_body'
 ISS_TF_FRAME = 'iss_body'
+
+# boxのRViz Marker色。models/box.sdfの<material>(Gazebo上の色)と揃えること。
+BOX_MODEL_NAME = 'box'
+BOX_MARKER_COLOR = (1.0, 0.45, 0.0, 1.0)
 
 # astrobee_freeflyer は複数visual/複数collisionの特殊構成のため、SIM_MODELS辞書ではなく
 # 専用テンプレート(models/astrobee_freeflyer.sdf)を使う(sim_models.py参照)。
@@ -339,6 +343,10 @@ def main():
     elif parsed.model == ASTROBEE_MODEL_NAME:
         build_markers = lambda pose, stamp: build_astrobee_markers(  # noqa: E731
             instance_name, pose, ISS_TF_FRAME, stamp
+        )
+    elif parsed.model == BOX_MODEL_NAME:
+        build_markers = lambda pose, stamp: build_box_markers(  # noqa: E731
+            instance_name, parsed.size, pose, ISS_TF_FRAME, stamp, color=BOX_MARKER_COLOR
         )
     else:
         build_markers = lambda pose, stamp: build_box_markers(  # noqa: E731

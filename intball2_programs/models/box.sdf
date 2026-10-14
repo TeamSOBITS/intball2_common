@@ -15,6 +15,11 @@
         <geometry>
           <box><size>{size_x} {size_y} {size_z}</size></box>
         </geometry>
+        <!-- spawn.pyのBOX_MARKER_COLOR(RViz表示色)と揃えること -->
+        <material>
+          <ambient>1.0 0.45 0.0 1</ambient>
+          <diffuse>1.0 0.45 0.0 1</diffuse>
+        </material>
       </visual>
     </link>
   </model>
