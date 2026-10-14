@@ -7,6 +7,10 @@ ISS姿勢は`/gazebo/get_model_state`で必要な分だけ取得する。`/gazeb
 約930Hzで届き、購読し続けるだけでCPUを約1コア使うため使わない
 (docs/light_spawn_load_measurement.md参照)。
 """
+import time
+
+import rclpy
+from rclpy.duration import Duration
 from geometry_msgs.msg import Point, Pose
 
 from intball2_programs.ros import GetModelStateServiceClient, ModelStatePublisher
@@ -24,14 +28,20 @@ class IssFollower:
         self.iss_pose = None
 
     def wait_until_ready(self, timeout_sec=10.0):
-        """サービスを待ち、ISS姿勢を1回取得する。取得できなければFalse。"""
+        """サービスを待ち、ISS姿勢を取得する。timeout_sec以内に取得できなければFalse。
+
+        bridge起動直後などに1回目の呼び出しだけ失敗することがあるため、期限内は再試行する。
+        """
         if not self._get_state.wait_for_service(timeout_sec=timeout_sec):
             return False
-        self.iss_pose = self._get_state.call(ISS_MODEL_NAME)
-        if self.iss_pose is None:
-            self._node.get_logger().error(f'Model not found in Gazebo: {ISS_MODEL_NAME}')
-            return False
-        return True
+        deadline = self._node.get_clock().now() + Duration(seconds=timeout_sec)
+        while rclpy.ok() and self._node.get_clock().now() < deadline:
+            self.iss_pose = self._get_state.call(ISS_MODEL_NAME)
+            if self.iss_pose is not None:
+                return True
+            time.sleep(0.5)
+        self._node.get_logger().error(f'Failed to get pose of model: {ISS_MODEL_NAME}')
+        return False
 
     def exists(self, model_name):
         """model_nameのモデルがGazebo上に存在するか。"""
