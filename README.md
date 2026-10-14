@@ -251,6 +251,16 @@ ros2 launch intball2_programs stereo_pointcloud.launch.py
 <p align="right">(<a href="#readme-top">上に戻る</a>)</p>
 
 
+### ステレオ深度生成方法（intball2_stereo）
+上記「ステレオ点群生成方法」(stereo_image_proc) とは別の，自作の深度生成ノードです．
+```sh
+ros2 launch intball2_stereo stereo.launch.py
+```
+詳細（精度優先設定・パラメータ・トピック）は[intball2_stereo/README.md](intball2_stereo/README.md)を参照してください．
+
+<p align="right">(<a href="#readme-top">上に戻る</a>)</p>
+
+
 ## マイルストーン
 
 現時点のバグや新規機能の依頼を確認するために[Issueページ](https://github.com/TeamSOBITS/intball2_common/issues)をご覧ください．

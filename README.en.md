@@ -252,6 +252,16 @@ ros2 launch intball2_programs stereo_pointcloud.launch.py
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 
+### Generating stereo depth (intball2_stereo)
+A separate, in-house depth generation node, distinct from the stereo_image_proc-based "Generating stereo point clouds" above.
+```sh
+ros2 launch intball2_stereo stereo.launch.py
+```
+For details (precision profile, parameters, topics), see [intball2_stereo/README.en.md](intball2_stereo/README.en.md).
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+
 ## Milestones
 
 See the [Issues page](https://github.com/TeamSOBITS/intball2_common/issues) for current bugs and feature requests.

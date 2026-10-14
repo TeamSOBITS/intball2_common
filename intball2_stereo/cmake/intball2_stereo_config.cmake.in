@@ -1,0 +1,5 @@
+@PACKAGE_INIT@
+include(CMakeFindDependencyMacro)
+find_dependency(OpenCV COMPONENTS core imgproc calib3d)
+include("${CMAKE_CURRENT_LIST_DIR}/intball2_stereo_targets.cmake")
+check_required_components(intball2_stereo)

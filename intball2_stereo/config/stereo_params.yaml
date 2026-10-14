@@ -1,0 +1,45 @@
+# StereoNode startup configuration. Simulation measurements completed; hardware validation pending.
+# Raw Gazebo CameraInfo only; never feed *_fixed to gazebo_negative_5cm mode.
+stereo_node:
+  ros__parameters:
+    camera.calibration_mode: gazebo_negative_5cm
+    camera.input_geometry: already_rectified
+    processing.downsample: 4
+    processing.opencv_threads: 1
+    # Pre-SGBM margins in the published output grid; full-grid depth remains, outside becomes NaN.
+    processing.roi_left_px: 0
+    processing.roi_right_px: 0
+    processing.roi_top_px: 0
+    processing.roi_bottom_px: 0
+    matcher.min_disparity_px: -25
+    matcher.num_disparities_px: 32
+    matcher.disparity_units: processed_pixels
+    matcher.block_size_px: 5
+    matcher.uniqueness_ratio: 10
+    matcher.speckle_window_size_px: 100
+    matcher.speckle_range_px: 2
+    matcher.disp12_max_diff_px: 1
+    refinement.enabled: false
+    refinement.downsample: 2
+    refinement.window_size_px: 9
+    refinement.search_radius_px: 2
+    refinement.min_texture_variance: 1.0
+    refinement.min_correlation: 0.7
+    depth.min_depth_m: 0.25
+    depth.max_depth_m: 3.0
+    points.publish_points: false
+    points.layout: organized
+    points.stride: 1
+    topics.left_image: /camera_left/image_raw
+    topics.right_image: /camera_right/image_raw
+    topics.left_camera_info: /camera_left/camera_info
+    topics.right_camera_info: /camera_right/camera_info
+    topics.depth: /stereo/depth
+    topics.camera_info: /stereo/camera_info
+    topics.points: /stereo/points
+    topics.diagnostics: /diagnostics
+    topics.timing: /stereo/timing
+    diagnostics.publish_interval_s: 1.0
+    sync.queue_size: 5
+    sync.max_interval_s: 0.02
+    qos.depth: 5
