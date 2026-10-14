@@ -12,7 +12,6 @@ import yaml
 from rclpy.duration import Duration
 from rclpy.node import Node
 from rclpy.signals import SignalHandlerOptions
-from geometry_msgs.msg import Pose, Point
 from visualization_msgs.msg import Marker
 
 from intball2_programs.spawn.sim_models import (
@@ -20,6 +19,7 @@ from intball2_programs.spawn.sim_models import (
     build_sim_model_xml, local_mesh_uri, astrobee_mesh_uri,
 )
 from intball2_programs.spawn.iss_follower import IssFollower, WORLD_FRAME
+from intball2_programs.spawn.motion import DRIFT_MODES, DRIFT_WORLD, create_motion
 from intball2_programs.spawn.quaternion import quaternion_multiply, rpy_deg_to_quaternion
 from intball2_programs.ros import (
     DeleteModelServiceClient,
@@ -65,17 +65,6 @@ class SpawnBoxClient(Node):
     def build_pose(self, relative_pos, rpy):
         return self.iss_follower.to_world_pose(relative_pos, rpy_deg_to_quaternion(*rpy))
 
-    def build_relative_pose(self, relative_pos, rpy):
-        """rviz表示用。iss_bodyフレームでの相対姿勢(Gazebo world座標への変換なし)を返す。
-
-        rvizのFixed Frameは常にiss_body(このrviz.rvizのGlobal Options参照)なので、
-        build_pose()のようにiss_pose(Gazebo world内での実際のISS姿勢)を合成する必要がない。
-        """
-        return Pose(
-            position=Point(x=relative_pos[0], y=relative_pos[1], z=relative_pos[2]),
-            orientation=rpy_deg_to_quaternion(*rpy),
-        )
-
     def resolve_offset(self, target_frame, manual_offset, timeout_sec=5.0):
         """iss_bodyから見たtarget_frame原点 + manual_offset を返す。取得できなければNone。
 
@@ -101,10 +90,6 @@ class SpawnBoxClient(Node):
             )
             return None
         return [translation[i] + manual_offset[i] for i in range(3)]
-
-    def publish_sync(self, instance_name, relative_pos, rpy):
-        self.iss_follower.request_update()
-        self.iss_follower.publish(instance_name, relative_pos, rpy_deg_to_quaternion(*rpy))
 
 
 def build_collision_block(size_x, size_y, size_z):
@@ -266,6 +251,12 @@ def parse_args(argv):
     parser.add_argument('-o', dest='offset', nargs=3, type=float, default=list(DEFAULT_OFFSET))
     parser.add_argument('-r', dest='rpy', nargs=3, type=float, default=list(DEFAULT_RPY))
     parser.add_argument('-c', dest='collision', action='store_true')
+    parser.add_argument(
+        '-d', dest='drift', nargs='?', const=DRIFT_WORLD, default=None, choices=DRIFT_MODES,
+        help='spawn後はISSに固定せず漂わせる (-dのみ: %(const)s)\n'
+             '  world: 初速0で放置(score_managerと同じ)\n'
+             '  iss:   ISSに対して静止した初速を与えて放置',
+    )
     return parser.parse_args(argv)
 
 
@@ -304,10 +295,16 @@ def main():
 
     try:
         if parsed.model in SIM_MODELS:
-            model_xml = build_sim_model_xml(instance_name, SIM_MODELS[parsed.model], parsed.collision)
+            meta = SIM_MODELS[parsed.model]
+            if parsed.drift is not None:
+                # staticなモデルは物理で動かないため、ドリフト時は非static(gravity 0)にする。
+                meta = {**meta, 'static': False}
+            model_xml = build_sim_model_xml(instance_name, meta, parsed.collision)
         else:
             fixed_collision_block = ASTROBEE_COLLISION_BLOCK if parsed.model == ASTROBEE_MODEL_NAME else None
             template = load_model_template(parsed.model)
+            if parsed.drift is not None and '<static>true</static>' in template:
+                raise RuntimeError(f'-d cannot be used with static model: {parsed.model}')
             model_xml = build_model_xml(
                 template, instance_name, parsed.size, parsed.collision,
                 fixed_collision_block=fixed_collision_block,
@@ -335,6 +332,17 @@ def main():
         rclpy.shutdown()
         sys.exit(1)
 
+    motion = create_motion(
+        parsed.drift, node, node.iss_follower, instance_name,
+        relative_pos, rpy_deg_to_quaternion(*parsed.rpy),
+    )
+    if not motion.start():
+        node.get_logger().error('Failed to start motion.')
+        node.delete_model(instance_name)
+        node.destroy_node()
+        rclpy.shutdown()
+        sys.exit(1)
+
     if parsed.model in SIM_MODELS:
         meta = SIM_MODELS[parsed.model]
         build_markers = lambda pose, stamp: build_mesh_markers(  # noqa: E731
@@ -354,11 +362,14 @@ def main():
         )
 
     marker_count = 0
-    relative_pose = node.build_relative_pose(relative_pos, parsed.rpy)
 
     def tick():
         nonlocal marker_count
-        node.publish_sync(instance_name, relative_pos, parsed.rpy)
+        motion.tick()
+        # rvizのFixed Frameはiss_bodyなので、MarkerはMotionが返すiss_body基準の姿勢で描く。
+        relative_pose = motion.relative_pose()
+        if relative_pose is None:
+            return
         markers = build_markers(relative_pose, node.get_clock().now().to_msg())
         marker_count = len(markers)
         node.marker_pub.publish(markers)
