@@ -16,16 +16,18 @@ from launch_ros.actions import ComposableNodeContainer, Node, SetParameter
 from launch_ros.descriptions import ComposableNode
 
 
-def common_description():
-    path = Path(get_package_share_directory('intball2_programs')) / 'launch/stereo_pointcloud.launch.py'
+def common_entities():
+    # The python backend of stereo.launch.py; its topic arguments plus nodes.
+    path = Path(get_package_share_directory('intball2_stereo')) / 'launch/stereo.launch.py'
     spec = importlib.util.spec_from_file_location('common_stereo_comparison_source', path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    return module.generate_launch_description()
+    arguments = [entity for entity in module.generate_launch_description().entities
+                 if isinstance(entity, DeclareLaunchArgument) and entity.name.endswith('_topic')]
+    return [*arguments, *module.python_nodes(None)]
 
 
 def generate_launch_description():
-    common = common_description()
     entities = [
         DeclareLaunchArgument('full', default_value='true',
                               description='Default value for pointcloud; original full pipeline.'),
@@ -36,7 +38,7 @@ def generate_launch_description():
         SetParameter(name='use_sim_time', value=True),
     ]
     containers = 0
-    for entity in common.entities:
+    for entity in common_entities():
         if isinstance(entity, ComposableNodeContainer):
             # Humble exposes descriptors only on this private member; fail on API drift.
             attribute = '_ComposableNodeContainer__composable_node_descriptions'

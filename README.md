@@ -236,8 +236,9 @@ ros2 run intball2_programs move_relative -x 0.5 -y 0.5 -z 0.5 -r 0.0 -p 0.0 -w 4
 
 ### ステレオ点群生成方法
 stereo_image_procを使用して、左右カメラの画像から視差画像・点群（`/stereo/points2`）を生成し、RViz等で確認できます
+`intball2_stereo` の `stereo.launch.py` を `backend:=python` で起動します（ノード本体は `intball2_programs` のものを使用）
 ```sh
-ros2 launch intball2_programs stereo_pointcloud.launch.py
+ros2 launch intball2_stereo stereo.launch.py backend:=python
 ```
 
 #### パラメータ
@@ -253,7 +254,7 @@ ros2 launch intball2_programs stereo_pointcloud.launch.py
 
 
 ### ステレオ深度生成方法（intball2_stereo）
-上記「ステレオ点群生成方法」(stereo_image_proc) とは別の，自作の深度生成ノードです．
+自作の深度生成ノード（C++）です．上記「ステレオ点群生成方法」(stereo_image_proc) と同じ `stereo.launch.py` で，デフォルトではこちらが起動します．
 ```sh
 ros2 launch intball2_stereo stereo.launch.py
 ```

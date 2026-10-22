@@ -46,6 +46,14 @@ ros2 launch intball2_stereo stereo.launch.py
   ```sh
   ros2 launch intball2_stereo stereo.launch.py precision:=true
   ```
+- Switching the backend
+  - The default is this package's C++ node (`stereo_node`).
+  - `backend:=python` switches to stereo_image_proc with the Python nodes from `intball2_programs` (`fix_camera_info`, `crop_pointcloud`).
+  - The default itself can be changed with `STEREO_BACKEND` in `launch/stereo.launch.py`.
+  - For the Python backend arguments (`left_image_topic`, etc.), see the [intball2_common README](../README.en.md).
+  ```sh
+  ros2 launch intball2_stereo stereo.launch.py backend:=python
+  ```
 - Point cloud
   - Not published by default. Set `points.publish_points: true` to publish it.
   - It can also be enabled while the launch is running:

@@ -237,8 +237,9 @@ ros2 run intball2_programs move_relative -x 0.5 -y 0.5 -z 0.5 -r 0.0 -p 0.0 -w 4
 
 ### Generating stereo point clouds
 Generate a disparity image and point cloud (`/stereo/points2`) from the left/right camera images using stereo_image_proc, viewable in RViz, etc.
+This runs `stereo.launch.py` of `intball2_stereo` with `backend:=python` (the nodes themselves are from `intball2_programs`).
 ```sh
-ros2 launch intball2_programs stereo_pointcloud.launch.py
+ros2 launch intball2_stereo stereo.launch.py backend:=python
 ```
 
 #### Parameters
@@ -254,7 +255,7 @@ ros2 launch intball2_programs stereo_pointcloud.launch.py
 
 
 ### Generating stereo depth (intball2_stereo)
-A separate, in-house depth generation node, distinct from the stereo_image_proc-based "Generating stereo point clouds" above.
+An in-house depth generation node (C++). It shares `stereo.launch.py` with the stereo_image_proc-based "Generating stereo point clouds" above and is the default backend.
 ```sh
 ros2 launch intball2_stereo stereo.launch.py
 ```
