@@ -27,6 +27,10 @@ def cpp_nodes(context):
             str(params_file),
             {'use_sim_time': ParameterValue(
                 LaunchConfiguration('use_sim_time'), value_type=bool)},
+            # Override the YAML so downstream nodes get the same /stereo/points2 as the python backend
+            {'points.publish_points': ParameterValue(
+                LaunchConfiguration('publish_points'), value_type=bool)},
+            {'topics.points': LaunchConfiguration('points_topic')},
         ],
     )]
 
@@ -90,28 +94,6 @@ def python_nodes(context):
             output='screen',
         ),
         Node(
-            package='tf2_ros',
-            executable='static_transform_publisher',
-            arguments=[
-                '--x', '0', '--y', '0', '--z', '0',
-                '--yaw', '-1.5708', '--pitch', '0', '--roll', '-1.5708',
-                '--frame-id', 'cameraL_link',
-                '--child-frame-id', 'cameraL_optical_frame',
-            ],
-            output='screen',
-        ),
-        Node(
-            package='tf2_ros',
-            executable='static_transform_publisher',
-            arguments=[
-                '--x', '0', '--y', '0', '--z', '0',
-                '--yaw', '-1.5708', '--pitch', '0', '--roll', '-1.5708',
-                '--frame-id', 'cameraR_link',
-                '--child-frame-id', 'cameraR_optical_frame',
-            ],
-            output='screen',
-        ),
-        Node(
             package='intball2_programs',
             executable='fix_camera_info',
             output='screen',
@@ -124,12 +106,30 @@ def python_nodes(context):
     ]
 
 
+def optical_frame_tf_nodes():
+    # Both backends publish point clouds in camera*_optical_frame
+    return [
+        Node(
+            package='tf2_ros',
+            executable='static_transform_publisher',
+            arguments=[
+                '--x', '0', '--y', '0', '--z', '0',
+                '--yaw', '-1.5708', '--pitch', '0', '--roll', '-1.5708',
+                '--frame-id', f'camera{side}_link',
+                '--child-frame-id', f'camera{side}_optical_frame',
+            ],
+            output='screen',
+        )
+        for side in ('L', 'R')
+    ]
+
+
 def launch_nodes(context):
     backend = LaunchConfiguration('backend').perform(context)
     if backend == 'cpp':
-        return cpp_nodes(context)
+        return cpp_nodes(context) + optical_frame_tf_nodes()
     if backend == 'python':
-        return python_nodes(context)
+        return python_nodes(context) + optical_frame_tf_nodes()
     raise RuntimeError(f"backend must be 'cpp' or 'python', got '{backend}'")
 
 
@@ -146,6 +146,12 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'use_sim_time', default_value='true',
             description='[cpp] Use the simulation clock'),
+        DeclareLaunchArgument(
+            'publish_points', default_value='true',
+            description='[cpp] Publish the XYZ point cloud'),
+        DeclareLaunchArgument(
+            'points_topic', default_value='/stereo/points2',
+            description='[cpp] Point cloud output topic (same as the python backend)'),
         # python backend
         DeclareLaunchArgument(
             'left_image_topic', default_value='/camera_left/image_raw',
